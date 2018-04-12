@@ -42,6 +42,10 @@ export default Component.extend({
 
 - `isReconnecting`: computed value from `state` that returns when is `RECONNECTING`.
 
+#### Methods
+
+- `reconnect`: you can call this method to force a reconnect request. Next delay will be multiplied as if it will reach countdown to zero.
+
 #### Events
 
 You can subscribe to the `change` event to receive changes on `state` property.

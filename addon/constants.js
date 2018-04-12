@@ -12,3 +12,8 @@ export const CONFIG = {
 		max: 60000
 	}
 };
+
+export default {
+	STATES,
+	CONFIG
+};

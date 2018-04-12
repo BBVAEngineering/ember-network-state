@@ -436,3 +436,76 @@ test('it reads reconnection configuration from app', async function(assert) {
 	server.restore();
 	clock.restore();
 });
+
+test('it retries reconnect when forced', async function(assert) {
+	const FAIL = 0;
+	const OK = 200;
+	const server = sinon.fakeServer.create();
+	const clock = sinon.useFakeTimers();
+	const service = this.subject({ state: null });
+	const delay = 5000;
+	const multiplier = 1.5;
+	const times = 2;
+	let i = times;
+
+	server.respondWith('GET', '/favicon.ico', (xhr) => {
+		if (!i) {
+			xhr.respond(OK, {}, '');
+			return;
+		}
+
+		xhr.respond(FAIL, {}, '');
+
+		i--;
+	});
+
+	service.set('state', STATES.RECONNECTING);
+
+	server.respond(); // fail
+
+	await wait(forSettledWaiters);
+
+	clock.tick(delay / 2);
+
+	service.reconnect();
+
+	server.respond(); // fail
+
+	await wait(forSettledWaiters);
+
+	assert.equal(service.get('remaining'), delay * multiplier, 'remaining is expected');
+
+	clock.tick(delay * multiplier);
+
+	await wait(forSettledTimers);
+
+	server.respond(); // ok
+
+	await wait(forSettledWaiters);
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+
+	await settled();
+
+	assert.equal(server.requests.length, times + 1, 'requests are made');
+
+	server.restore();
+	clock.restore();
+});
+
+test('it changes state to reconnect from online when forced', function(assert) {
+	const service = this.subject({ state: STATES.ONLINE });
+
+	service.reconnect();
+
+	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+});
+
+test('it changes state to reconnect from offline when forced', function(assert) {
+	const service = this.subject({ state: STATES.OFFLINE });
+
+	service.reconnect();
+
+	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+});
+

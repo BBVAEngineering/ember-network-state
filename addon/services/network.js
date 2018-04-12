@@ -97,6 +97,22 @@ export default Service.extend(Evented, {
 	},
 
 	/**
+	 * Force reconnection.
+	 *
+	 * @method reconnect
+	 */
+	reconnect() {
+		const state = this.get('state');
+
+		if (state !== STATES.RECONNECTING) {
+			this.set('state', STATES.RECONNECTING);
+		} else {
+			this._clearTimer();
+			this._reconnect();
+		}
+	},
+
+	/**
 	 * Deinit window listeners.
 	 *
 	 * @method willDestroy
@@ -118,6 +134,24 @@ export default Service.extend(Evented, {
 	 */
 	_onChange: observer('state', function() {
 		const state = this.get('state');
+
+		this.set('_nextDelay');
+
+		this._clearTimer();
+
+		if (state === STATES.RECONNECTING) {
+			this._reconnect();
+		}
+
+		this.trigger('change', state);
+	}),
+
+	/**
+	 * Clear timer for reconnect.
+	 *
+	 * @method _clearTimer
+	 */
+	_clearTimer() {
 		const timer = this.get('_timer');
 
 		if (timer) {
@@ -126,15 +160,8 @@ export default Service.extend(Evented, {
 			this.set('_timer');
 		}
 
-		this.set('_nextDelay');
 		this.set('_timestamp');
-
-		if (state === STATES.RECONNECTING) {
-			this._reconnect();
-		}
-
-		this.trigger('change', state);
-	}),
+	},
 
 	/**
 	 * Saved timer.
