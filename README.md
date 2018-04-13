@@ -9,7 +9,11 @@
 
 [![NPM](https://nodei.co/npm/ember-network-state.png?downloads=true&downloadRank=true)](https://nodei.co/npm/ember-network-state/)
 
-Check and react on network state of your progressive web app
+Check and react on network state of your progressive web app.
+
+The browser provides network property `window.navigator.onLine` and events `online` and `offline`. The problem is that this API is not reliable, we can have an interface connection (phone is not on airplane mode, we have wifi data) but the network may not have access to the internet.
+
+In order to confirm the connection status, this addon pings a url (by default it is the favicon.ico) when it detects that user supposedly have connectivity again (that would be the state `reconnecting`). When the ping ends and it goes ok, it will switch to `online` status, but if ping doesn't go ok, this addon will keep the state `offline` and it will schedule a ping every certain time keeping the status `reconnecting.
 
 ## Usage
 
