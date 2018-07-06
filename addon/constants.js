@@ -1,15 +1,18 @@
 export const STATES = {
 	ONLINE: 'ONLINE',
 	OFFLINE: 'OFFLINE',
-	RECONNECTING: 'RECONNECTING'
+	RECONNECTING: 'RECONNECTING',
+	LIMITED: 'LIMITED'
 };
 
 export const CONFIG = {
 	reconnect: {
+		auto: true,
 		path: '/favicon.ico',
 		delay: 5000,
 		multiplier: 1.5,
-		max: 60000
+		maxDelay: 60000,
+		maxTimes: Infinity
 	}
 };
 

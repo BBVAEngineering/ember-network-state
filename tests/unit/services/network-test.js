@@ -25,7 +25,7 @@ function wait(fn) {
 moduleFor('service:network', 'Unit | Services | network', {
 	beforeEach() {
 		this.config = {};
-		this.register('config:environment', this.config, { instantiate: false });
+		this.register('config:environment', { 'network-state': this.config }, { instantiate: false });
 	},
 	afterEach() {
 		return settled();
@@ -90,7 +90,7 @@ test('it listens for offline network changes', function(assert) {
 	assert.equal(service.get('state'), STATES.OFFLINE, 'state is offline');
 });
 
-test('it listens for online network changes', function(assert) {
+test('it listens for online network changes and reconnect is auto', function(assert) {
 	const navigator = { onLine: false };
 	const service = this.subject({ navigator });
 
@@ -103,46 +103,40 @@ test('it listens for online network changes', function(assert) {
 	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
 });
 
-test('it triggers an event for offline network changes', function(assert) {
-	assert.expect(1);
+test('it listens for online network changes and reconnect is not auto', function(assert) {
+	this.config.reconnect = {
+		auto: false
+	};
 
-	const service = this.subject({ state: null });
+	const navigator = { onLine: false };
+	const service = this.subject({ navigator });
 
-	service.on('change', (state) => {
-		assert.equal(state, STATES.OFFLINE, 'event for offline');
+	assert.equal(service.get('state'), STATES.OFFLINE, 'state is offline');
 
-		service.off('change');
-	});
+	navigator.onLine = true;
 
-	service.set('state', STATES.OFFLINE);
+	window.dispatchEvent(new Event('online'));
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
 });
 
-test('it triggers an event for reconnect network changes', function(assert) {
+cases([
+	{ title: 'online', state: STATES.ONLINE },
+	{ title: 'reconnecting', state: STATES.RECONNECTING },
+	{ title: 'offline', state: STATES.OFFLINE },
+	{ title: 'limited', state: STATES.LIMITED }
+]).test('it triggers an event for network changes ', function({ state }, assert) {
 	assert.expect(1);
 
 	const service = this.subject({ state: null });
 
-	service.on('change', (state) => {
-		assert.equal(state, STATES.RECONNECTING, 'event for offline');
+	service.on('change', (newState) => {
+		assert.equal(newState, state, 'event for change');
 
 		service.off('change');
 	});
 
-	service.set('state', STATES.RECONNECTING);
-});
-
-test('it triggers an event for online network changes', function(assert) {
-	assert.expect(1);
-
-	const service = this.subject({ state: null });
-
-	service.on('change', (state) => {
-		assert.equal(state, STATES.ONLINE, 'event for offline');
-
-		service.off('change');
-	});
-
-	service.set('state', STATES.ONLINE);
+	service.set('state', state);
 });
 
 test('it reconnects when ping is ok', async function(assert) {
@@ -297,6 +291,62 @@ test('it keeps reconnecting after a successful reconnect', async function(assert
 	clock.restore();
 });
 
+test('it keeps reconnecting until max times', async function(assert) {
+	const maxTimes = 2;
+	const multiplier = 1.5;
+	const max = 60000;
+	let delay = 5000;
+
+	this.config.reconnect = {
+		maxTimes
+	};
+
+	const FAIL = 0;
+	const server = sinon.fakeServer.create();
+	const clock = sinon.useFakeTimers();
+	const service = this.subject({ state: null });
+	let i = maxTimes;
+
+	server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
+
+	service.set('state', STATES.RECONNECTING);
+
+	while (i) {
+		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+
+		server.respond();
+
+		await wait(forSettledWaiters);
+
+		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+
+		clock.tick(delay);
+
+		delay *= multiplier;
+
+		if (delay > max) {
+			delay = max;
+		}
+
+		await wait(forSettledTimers);
+
+		i--;
+	}
+
+	server.respond();
+
+	await wait(forSettledWaiters);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
+
+	await settled();
+
+	assert.equal(server.requests.length, maxTimes + 1);
+
+	server.restore();
+	clock.restore();
+});
+
 test('it returns remaining time for next reconnect', async function(assert) {
 	const FAIL = 0;
 	const OK = 200;
@@ -373,11 +423,11 @@ test('it does not try to reconnect when state changes', async function(assert) {
 test('it reads reconnection configuration from app', async function(assert) {
 	const path = '/foo.ico';
 	const multiplier = 2;
-	const max = 120000;
+	const maxDelay = 120000;
 	let delay = 10000;
 
-	this.config.network = {
-		reconnect: { multiplier, max, delay, path }
+	this.config.reconnect = {
+		multiplier, maxDelay, delay, path
 	};
 
 	const FAIL = 0;
@@ -414,8 +464,8 @@ test('it reads reconnection configuration from app', async function(assert) {
 
 		delay *= multiplier;
 
-		if (delay > max) {
-			delay = max;
+		if (delay > maxDelay) {
+			delay = maxDelay;
 		}
 
 		await wait(forSettledTimers);

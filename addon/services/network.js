@@ -85,10 +85,10 @@ export default Service.extend(Evented, {
 		this._super(...arguments);
 
 		const appConfig = getOwner(this).resolveRegistration('config:environment');
-		const addonConfig = getWithDefault(appConfig, 'network', {});
-		const config = Object.assign({}, CONFIG, addonConfig);
+		const addonConfig = getWithDefault(appConfig, 'network-state', {});
+		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
 
-		this.set('_config', config);
+		this.set('_config', { reconnect });
 
 		const changeNetworkBinding = this.get('_changeNetworkBinding');
 
@@ -140,6 +140,7 @@ export default Service.extend(Evented, {
 		this._clearTimer();
 
 		if (state === STATES.RECONNECTING) {
+			this.set('_times', 0);
 			this._reconnect();
 		}
 
@@ -172,6 +173,14 @@ export default Service.extend(Evented, {
 	_timer: null,
 
 	/**
+	 * Retry times.
+	 *
+	 * @property _times
+	 * @type {Number}
+	 */
+	_times: 0,
+
+	/**
 	 * Change network binding.
 	 *
 	 * @property changeNetworkBinding
@@ -189,8 +198,17 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	_changeNetwork() {
+		const { reconnect } = this.get('_config');
 		const onLine = this.get('navigator.onLine');
-		const state = onLine ? STATES.RECONNECTING : STATES.OFFLINE;
+		let state;
+
+		if (!onLine) {
+			state = STATES.OFFLINE;
+		} else if (reconnect.auto) {
+			state = STATES.RECONNECTING;
+		} else {
+			state = STATES.LIMITED;
+		}
 
 		this.set('state', state);
 	},
@@ -209,6 +227,7 @@ export default Service.extend(Evented, {
 
 			this.set('state', STATES.ONLINE);
 		} catch (e) {
+			this.incrementProperty('_times');
 			this._delayReconnect();
 		}
 	},
@@ -222,10 +241,16 @@ export default Service.extend(Evented, {
 	_delayReconnect() {
 		const { reconnect } = this.get('_config');
 		const delay = this.getWithDefault('_nextDelay', reconnect.delay);
+		const times = this.get('_times');
 		let nextDelay = delay * reconnect.multiplier;
 
-		if (nextDelay > reconnect.max) {
-			nextDelay = reconnect.max;
+		if (times > reconnect.maxTimes) {
+			this.set('state', STATES.LIMITED);
+			return;
+		}
+
+		if (nextDelay > reconnect.maxDelay) {
+			nextDelay = reconnect.maxDelay;
 		}
 
 		const timer = later(this, '_reconnect', delay);
