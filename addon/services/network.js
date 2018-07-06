@@ -7,6 +7,7 @@ import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 
 const { navigator } = window;
+const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
 
 export default Service.extend(Evented, {
 
@@ -17,6 +18,14 @@ export default Service.extend(Evented, {
 	 * @type {Object}
 	 */
 	navigator,
+
+	/**
+	 * Connection proxy for testing.
+	 *
+	 * @property connection
+	 * @type {Object}
+	 */
+	connection,
 
 	/**
 	 * State property. Posible values:
@@ -59,6 +68,14 @@ export default Service.extend(Evented, {
 	isReconnecting: computed.equal('state', STATES.RECONNECTING),
 
 	/**
+	 * Check when network is limited.
+	 *
+	 * @property isLimited
+	 * @type {Boolean}
+	 */
+	isLimited: computed.equal('state', STATES.LIMITED),
+
+	/**
 	 * Remaining time for next reconnect.
 	 *
 	 * @property remaining
@@ -84,6 +101,7 @@ export default Service.extend(Evented, {
 	init() {
 		this._super(...arguments);
 
+		const network = this.get('connection');
 		const appConfig = getOwner(this).resolveRegistration('config:environment');
 		const addonConfig = getWithDefault(appConfig, 'network-state', {});
 		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
@@ -94,6 +112,10 @@ export default Service.extend(Evented, {
 
 		window.addEventListener('online', changeNetworkBinding);
 		window.addEventListener('offline', changeNetworkBinding);
+
+		if (network) {
+			network.addEventListener('change', changeNetworkBinding);
+		}
 	},
 
 	/**
@@ -120,10 +142,15 @@ export default Service.extend(Evented, {
 	willDestroy() {
 		this._super(...arguments);
 
+		const network = this.get('connection');
 		const changeNetworkBinding = this.get('_changeNetworkBinding');
 
 		window.removeEventListener('online', changeNetworkBinding);
 		window.removeEventListener('offline', changeNetworkBinding);
+
+		if (network) {
+			network.removeEventListener('change', changeNetworkBinding);
+		}
 	},
 
 	/**

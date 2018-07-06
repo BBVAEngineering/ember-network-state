@@ -77,6 +77,16 @@ test('it has an isReconnecting attribute', function(assert) {
 	assert.ok(service.get('isReconnecting'), 'service is reconnecting');
 });
 
+test('it has an isLimited attribute', function(assert) {
+	const service = this.subject({ state: null });
+
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+
+	service.set('state', STATES.LIMITED);
+
+	assert.ok(service.get('isLimited'), 'service is limited');
+});
+
 test('it listens for offline network changes', function(assert) {
 	const navigator = { onLine: true };
 	const service = this.subject({ navigator });
@@ -118,6 +128,38 @@ test('it listens for online network changes and reconnect is not auto', function
 	window.dispatchEvent(new Event('online'));
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
+});
+
+test('it listens for connection network changes and reconnect is auto', function(assert) {
+	const connection = new EventTarget();
+	const service = this.subject({ connection });
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+
+	connection.dispatchEvent(new Event('change'));
+
+	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+});
+
+test('it listens for connection network changes and reconnect is not auto', function(assert) {
+	this.config.reconnect = {
+		auto: false
+	};
+
+	const connection = new EventTarget();
+	const service = this.subject({ connection });
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+
+	connection.dispatchEvent(new Event('change'));
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
+});
+
+test('it supports no implementations of connection API', function(assert) {
+	assert.expect(0);
+
+	this.subject({ connection: null });
 });
 
 cases([
@@ -553,6 +595,14 @@ test('it changes state to reconnect from online when forced', function(assert) {
 
 test('it changes state to reconnect from offline when forced', function(assert) {
 	const service = this.subject({ state: STATES.OFFLINE });
+
+	service.reconnect();
+
+	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+});
+
+test('it changes state to reconnect from offline when forced', function(assert) {
+	const service = this.subject({ state: STATES.LIMITED });
 
 	service.reconnect();
 
