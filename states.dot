@@ -2,22 +2,23 @@ digraph states {
   rankdir = LR;
   size = "8.5";
 
-  node [shape = circle, label = "Online"] ON;
-  node [shape = circle, label = "Offline"] OFF;
+  node [shape = doublecircle, label = "Online"] ON;
+  node [shape = doublecircle, label = "Offline"] OFF;
+  node [shape = doublecircle, label = "Limited"] LIM;
   node [shape = circle, label = "Reconnecting"] REC;
-  node [shape = circle, label = "Limited"] LIM;
   node [shape = point]; qi
+  node [shape = point]; qj
 
-  qi -> ON;
+  qi -> ON [label = "onLine = true"];
+  qj -> OFF [label = "onLine = false"];
 
   OFF -> REC [label = "event(online)"];
-  REC -> ON [label = "fetch ➝ OK"];
-  REC -> REC [label = "fetch ➝ KO"];
-  REC -> LIM [label = "maxTimes"];
-  LIM -> REC [label = "reconnect()"]
+  REC -> ON [label = "fetch ➝  OK"];
+  REC -> LIM [label = "fetch ➝  KO"];
+  LIM -> REC [label = "event(timer)"];
+  LIM -> REC [label = "reconnect()"];
 
   ON -> OFF [label = "event(offline)"];
-  REC -> OFF [label = "event(offline)"];
   LIM -> OFF [label = "event(offline)"];
 
   ON -> REC [label = "event(change)"];

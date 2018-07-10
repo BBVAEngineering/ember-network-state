@@ -7,12 +7,12 @@ export const STATES = {
 
 export const CONFIG = {
 	reconnect: {
-		auto: true,
+		auto: false,
 		path: '/favicon.ico',
 		delay: 5000,
 		multiplier: 1.5,
 		maxDelay: 60000,
-		maxTimes: Infinity
+		maxTimes: -1
 	}
 };
 

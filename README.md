@@ -9,11 +9,11 @@
 
 [![NPM](https://nodei.co/npm/ember-network-state.png?downloads=true&downloadRank=true)](https://nodei.co/npm/ember-network-state/)
 
-Check and react on network state of your progressive web app.
+Check and react network state of your progressive web app.
 
 The browser provides network property `window.navigator.onLine` and events `online` and `offline`. The problem is that this API is not reliable, we can have an interface connection (phone is not on airplane mode, we have WiFi data) but the network may not have access to the internet.
 
-In order to confirm the connection status, this add on pings a URL (by default it is the `favicon.ico`) when it detects that user supposedly have connectivity again (that would be the state `reconnecting`). When the ping ends and it goes OK, it will switch to `online` status, but if ping doesn't go OK, this add on will keep the state `reconnecting` and it will schedule a ping every certain time.
+In order to confirm the connection status, this addon pings a URL (by default it is the `favicon.ico`) when it detects that user supposedly have connectivity again. When the ping ends and it goes OK, it will switch to `online` state, but if ping doesn't go OK, this addon will keep the state `limited` and it will schedule a ping every certain time.
 
 If the browser has implemented [connection API](http://wicg.github.io/netinfo/), it will listen for changes on network quality as well.
 
@@ -41,7 +41,7 @@ export default Component.extend({
 
 #### Properties
 
-- `state`: returns current state of the network. Posible values: `ONLINE`, `OFFLINE` and `RECONNECTING`. You can import values from:
+- `state`: returns current state of the network. Possible values: `ONLINE`, `OFFLINE` and `LIMITED`. You can import values from:
   `import { STATES } from 'ember-network-state/constants';`
 
 - `remaining`: returns remaining milliseconds to next reconnect.
@@ -50,9 +50,13 @@ export default Component.extend({
 
 - `isOffline`: computed value from `state` that returns when is `OFFLINE`.
 
-- `isReconnecting`: computed value from `state` that returns when is `RECONNECTING`.
-
 - `isLimited`: computed value from `state` that returns when is `LIMITED`.
+
+- `isReconnecting`: checks when service is testing for connection.
+
+- `hasTimer`: checks when service has scheduled a timer.
+
+- `lastReconnectDuration`: saves last reconnect duration.
 
 #### Methods
 
@@ -75,14 +79,14 @@ The addon can be configured in `config/environment.js` of your app.
 ```javascript
 module.exports = function(/* environment */) {
   return {
-    network: {
+    'network-state': {
       reconnect: {
         auto: true,
         path: '/favicon.ico',
         delay: 5000,
         multiplier: 1.5,
         maxDelay: 60000,
-        maxTimes: Infinity
+        maxTimes: -1
       }
     }
   };
@@ -97,7 +101,7 @@ Posible values:
   - `delay`: Initial delay for retry a reconnection. Default: `5000`.
   - `multiplier`: Increment for next retry. Next delay will be `delay * multiplier`. Default: `1.5`.
   - `maxDelay`: Maximum delay for a reconnect. Default: `60000`.
-  - `maxTimes`: Maximum times for a reconnect. Default: `Infinity`.
+  - `maxTimes`: Maximum times for a reconnect. When value is negative, its `Infinity`. Default: `-1`.
 
 ## Contribute
 

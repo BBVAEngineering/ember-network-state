@@ -1,10 +1,10 @@
-/* eslint max-statements: 0 */
-import { moduleFor, test } from 'ember-qunit';
-import cases from 'qunit-parameterize';
+/* eslint max-statements: 0 no-magic-numbers:0 */
+import { moduleFor, test, only } from 'ember-qunit';
 import { STATES } from 'ember-network-state/constants';
 import sinon from 'sinon';
 import settled, { getSettledState } from '@ember/test-helpers/settled';
 import waitUntil from '@ember/test-helpers/wait-until';
+import { begin, end } from '@ember/runloop';
 
 function forSettledWaiters() {
 	const { hasPendingWaiters } = getSettledState();
@@ -12,25 +12,129 @@ function forSettledWaiters() {
 	return !hasPendingWaiters;
 }
 
-function forSettledTimers() {
-	const { hasPendingTimers } = getSettledState();
-
-	return !hasPendingTimers;
-}
-
 function wait(fn) {
 	return waitUntil(fn, { timeout: Infinity });
 }
 
+function run(fn) {
+	return () => {
+		begin();
+		fn();
+		end();
+	};
+}
+
+function asyncFetch(context) {
+	return () => {
+		context.sandbox.server.respondImmediately = false;
+		context.sandbox.server.autoRespond = true;
+		context.sandbox.clock.restore();
+	};
+}
+
+function goOnline(context) {
+	const OK = 200;
+
+	return run(() => {
+		context.sandbox.server.respondWith('GET', '/favicon.ico', [OK, {}, '']);
+
+		if (!context.navigator.onLine) {
+			context.navigator.onLine = true;
+			window.dispatchEvent(new Event('online'));
+		}
+
+		if (context.navigator.connection) {
+			context.navigator.connection.dispatchEvent(new Event('change'));
+		}
+	});
+}
+
+function goOffline(context) {
+	const FAIL = 0;
+
+	return run(() => {
+		context.sandbox.server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
+
+		if (context.navigator.onLine) {
+			context.navigator.onLine = false;
+			window.dispatchEvent(new Event('offline'));
+		}
+
+		if (context.navigator.connection) {
+			context.navigator.connection.dispatchEvent(new Event('change'));
+		}
+	});
+}
+
+function goLimited(context) {
+	const FAIL = 0;
+
+	return run(() => {
+		context.sandbox.server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
+
+		if (!context.navigator.onLine) {
+			context.navigator.onLine = true;
+			window.dispatchEvent(new Event('online'));
+		}
+
+		if (context.navigator.connection) {
+			context.navigator.connection.dispatchEvent(new Event('change'));
+		}
+	});
+}
+
+function tick(context) {
+	const SECOND = 1000;
+
+	return async (time) => {
+		for (let i = 0; i < time; i++) {
+			try {
+				context.tick(SECOND);
+			} catch (e) {
+				// noop
+			}
+
+			await wait(forSettledWaiters);
+		}
+	};
+}
+
 moduleFor('service:network', 'Unit | Services | network', {
 	beforeEach() {
+		this.sandbox = sinon.sandbox.create({
+			useFakeTimers: true,
+			useFakeServer: true
+		});
+		this.sandbox.server.respondImmediately = true;
 		this.config = {};
+		this.goOnline = goOnline(this);
+		this.goOffline = goOffline(this);
+		this.goLimited = goLimited(this);
+		this.asyncFetch = asyncFetch(this);
+		this.tick = tick(this.sandbox.clock);
 		this.register('config:environment', { 'network-state': this.config }, { instantiate: false });
+		this._navigator = window.navigator;
+		this.navigator = { connection: new EventTarget() };
+		this.goOnline();
+
+		Object.defineProperty(window, 'navigator', {
+			get: () => this.navigator,
+			configurable: true
+		});
 	},
-	afterEach() {
-		return settled();
+	async afterEach() {
+		Object.defineProperty(window, 'navigator', {
+			get: () => this._navigator,
+			configurable: true
+		});
+
+		this.sandbox.restore();
+
+		await settled();
 	}
 });
+
+// initial states.
 
 test('it exists', function(assert) {
 	assert.expect(0);
@@ -38,574 +142,512 @@ test('it exists', function(assert) {
 	this.subject();
 });
 
-cases([
-	{ title: 'online', input: true, output: STATES.ONLINE },
-	{ title: 'offline', input: false, output: STATES.OFFLINE }
-]).test('it reads initial state from navigator ', function({ input, output }, assert) {
-	const service = this.subject({ navigator: { onLine: input } });
+test('it is online', async function(assert) {
+	this.goOnline();
 
-	assert.equal(service.get('state'), output, 'initial state is expected');
+	const service = this.subject();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+	assert.ok(service.get('isOnline'), 'service is online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.ok(service.get('isReconnecting'), 'state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.ok(service.get('isOnline'), 'service is online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
 });
 
-test('it has an isOnline attribute', function(assert) {
-	const service = this.subject({ state: null });
+test('it is offline', async function(assert) {
+	this.goOffline();
 
+	const service = this.subject();
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
 	assert.notOk(service.get('isOnline'), 'service is not online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.ok(service.get('isOffline'), 'service is offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+});
+
+test('it is limited', async function(assert) {
+	this.goLimited();
+
+	const service = this.subject();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+	assert.ok(service.get('isOnline'), 'service is online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.ok(service.get('isReconnecting'), 'state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.notOk(service.get('isOnline'), 'service is not online');
+	assert.ok(service.get('isLimited'), 'service is limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+});
+
+// state changes.
+
+test('it changes to online from offline', async function(assert) {
+	this.goOffline();
+
+	const service = this.subject();
+
+	await settled();
+
+	this.goOnline();
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
+	assert.notOk(service.get('isOnline'), 'service is not online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.ok(service.get('isOffline'), 'service is offline');
+	assert.ok(service.get('isReconnecting'), 'state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.ok(service.get('isOnline'), 'service is online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+});
+
+test('it changes to offline from online', async function(assert) {
+	this.goOnline();
+
+	const service = this.subject();
+
+	await settled();
+
+	this.goOffline();
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
+	assert.notOk(service.get('isOnline'), 'service is not online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.ok(service.get('isOffline'), 'service is offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+});
+
+test('it changes to offline from limited', async function(assert) {
+	this.goLimited();
+
+	const service = this.subject();
+
+	await settled();
+
+	this.goOffline();
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
+	assert.notOk(service.get('isOnline'), 'service is not online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.ok(service.get('isOffline'), 'service is offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+});
+
+test('it changes to limited from online', async function(assert) {
+	this.asyncFetch();
+
+	this.goOnline();
+
+	const service = this.subject();
+
+	await settled();
+
+	this.goLimited();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+	assert.ok(service.get('isOnline'), 'service is online');
+	assert.notOk(service.get('isLimited'), 'service is not limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.ok(service.get('isReconnecting'), 'state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.notOk(service.get('isOnline'), 'service is not online');
+	assert.ok(service.get('isLimited'), 'service is limited');
+	assert.notOk(service.get('isOffline'), 'service is not offline');
+	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+});
+
+test('it tests online connection on network change', async function(assert) {
+	this.goOnline();
+
+	const service = this.subject();
+
+	await settled();
+
+	this.goOnline();
+
+	assert.ok(service.get('isReconnecting'), 'state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+});
+
+test('it supports no implementations of connection API', async function(assert) {
+	this.goOnline();
+
+	delete window.navigator.connection;
+
+	const service = this.subject();
+
+	await settled();
+
+	this.goOnline();
+
+	assert.notOk(service.get('isReconnecting'), 'state is expected');
+});
+
+test('"state" property cannot be changed', async function(assert) {
+	this.goOffline();
+
+	const service = this.subject();
+
+	await settled();
 
 	service.set('state', STATES.ONLINE);
 
-	assert.ok(service.get('isOnline'), 'service is online');
+	await settled();
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
 });
 
-test('it has an isOffline attribute', function(assert) {
-	const service = this.subject({ state: null });
+// reconnect method
 
-	assert.notOk(service.get('isOffline'), 'service is not offline');
+test('it reconnects from online', async function(assert) {
+	this.goOnline();
 
-	service.set('state', STATES.OFFLINE);
+	const service = this.subject();
 
-	assert.ok(service.get('isOffline'), 'service is offline');
+	await settled();
+
+	service.reconnect();
+
+	assert.ok(service.get('isReconnecting'), 'initial state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 });
 
-test('it has an isReconnecting attribute', function(assert) {
-	const service = this.subject({ state: null });
+test('it reconnects from offline', async function(assert) {
+	this.goOffline();
 
-	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+	const service = this.subject();
 
-	service.set('state', STATES.RECONNECTING);
+	await settled();
 
-	assert.ok(service.get('isReconnecting'), 'service is reconnecting');
+	service.reconnect();
+
+	assert.ok(service.get('isReconnecting'), 'initial state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
 });
 
-test('it has an isLimited attribute', function(assert) {
-	const service = this.subject({ state: null });
+test('it reconnects from limited', async function(assert) {
+	this.goLimited();
 
-	assert.notOk(service.get('isLimited'), 'service is not limited');
+	const service = this.subject();
 
-	service.set('state', STATES.LIMITED);
+	await settled();
 
-	assert.ok(service.get('isLimited'), 'service is limited');
+	service.reconnect();
+
+	assert.ok(service.get('isReconnecting'), 'initial state is expected');
+
+	await settled();
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 });
 
-test('it listens for offline network changes', function(assert) {
-	const navigator = { onLine: true };
-	const service = this.subject({ navigator });
+// timer
 
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+test('it keeps reconnecting until reconnect goes ok without connection API', async function(assert) {
+	this.goLimited();
 
-	navigator.onLine = false;
+	delete window.navigator.connection;
 
-	window.dispatchEvent(new Event('offline'));
-
-	assert.equal(service.get('state'), STATES.OFFLINE, 'state is offline');
-});
-
-test('it listens for online network changes and reconnect is auto', function(assert) {
-	const navigator = { onLine: false };
-	const service = this.subject({ navigator });
-
-	assert.equal(service.get('state'), STATES.OFFLINE, 'state is offline');
-
-	navigator.onLine = true;
-
-	window.dispatchEvent(new Event('online'));
-
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-});
-
-test('it listens for online network changes and reconnect is not auto', function(assert) {
 	this.config.reconnect = {
-		auto: false
+		auto: true,
+		delay: 10000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: Infinity
 	};
 
-	const navigator = { onLine: false };
-	const service = this.subject({ navigator });
+	const service = this.subject();
 
-	assert.equal(service.get('state'), STATES.OFFLINE, 'state is offline');
+	await wait(forSettledWaiters);
 
-	navigator.onLine = true;
+	await this.tick(70);
 
-	window.dispatchEvent(new Event('online'));
+	this.goOnline();
 
-	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
+	assert.notEqual(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 4, 'requests are expected');
+
+	await this.tick(60);
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 5, 'requests are expected');
 });
 
-test('it listens for connection network changes and reconnect is auto', function(assert) {
-	const connection = new EventTarget();
-	const service = this.subject({ connection });
+test('it keeps reconnecting until reconnect goes ok with connection API', async function(assert) {
+	this.goLimited();
 
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
-
-	connection.dispatchEvent(new Event('change'));
-
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-});
-
-test('it listens for connection network changes and reconnect is not auto', function(assert) {
 	this.config.reconnect = {
-		auto: false
+		auto: true,
+		delay: 10000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: Infinity
 	};
 
-	const connection = new EventTarget();
-	const service = this.subject({ connection });
+	const service = this.subject();
 
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+	await wait(forSettledWaiters);
 
-	connection.dispatchEvent(new Event('change'));
+	await this.tick(70);
 
-	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
+	this.goOnline();
+
+	await wait(forSettledWaiters);
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 5, 'requests are expected');
 });
 
-test('it supports no implementations of connection API', function(assert) {
-	assert.expect(0);
+test('it keeps reconnecting until network goes offline', async function(assert) {
+	this.goLimited();
 
-	this.subject({ connection: null });
+	this.config.reconnect = {
+		auto: true,
+		delay: 10000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: Infinity
+	};
+
+	const service = this.subject();
+
+	await wait(forSettledWaiters);
+
+	await this.tick(70);
+
+	this.goOffline();
+
+	await wait(forSettledWaiters);
+
+	assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 4, 'requests are expected');
 });
 
-cases([
-	{ title: 'online', state: STATES.ONLINE },
-	{ title: 'reconnecting', state: STATES.RECONNECTING },
-	{ title: 'offline', state: STATES.OFFLINE },
-	{ title: 'limited', state: STATES.LIMITED }
-]).test('it triggers an event for network changes ', function({ state }, assert) {
+test('it keeps reconnecting until it reaches max tries', async function(assert) {
+	this.goLimited();
+
+	this.config.reconnect = {
+		auto: true,
+		delay: 5000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: 3
+	};
+
+	const service = this.subject();
+
+	await wait(forSettledWaiters);
+
+	await this.tick(45);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 3, 'requests are expected');
+});
+
+test('it resets reconnects when forced', async function(assert) {
+	this.goLimited();
+
+	this.config.reconnect = {
+		auto: true,
+		delay: 5000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: 4
+	};
+
+	const service = this.subject();
+
+	await wait(forSettledWaiters);
+
+	await this.tick(15);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 3, 'requests are expected');
+
+	service.reconnect();
+
+	await this.tick(45);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 7, 'requests are expected');
+});
+
+// change event
+
+test('it sends change action on online event', async function(assert) {
 	assert.expect(1);
 
-	const service = this.subject({ state: null });
+	this.goOffline();
+
+	const service = this.subject();
+
+	await settled();
 
 	service.on('change', (newState) => {
-		assert.equal(newState, state, 'event for change');
+		assert.equal(newState, STATES.ONLINE, 'event for change');
 
 		service.off('change');
 	});
 
-	service.set('state', state);
+	this.goOnline();
 });
 
-test('it reconnects when ping is ok', async function(assert) {
-	const OK = 200;
-	const server = sinon.fakeServer.create();
-	const service = this.subject({ state: null });
+test('it sends change action on limited event', async function(assert) {
+	assert.expect(1);
 
-	server.respondWith('GET', '/favicon.ico', [OK, {}, '']);
+	this.asyncFetch();
 
-	service.set('state', STATES.RECONNECTING);
+	this.goOffline();
 
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-	server.respond();
+	const service = this.subject();
 
 	await settled();
 
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
-	assert.equal(server.requests.length, 1);
+	service.on('change', (newState) => {
+		assert.equal(newState, STATES.LIMITED, 'event for change');
 
-	server.restore();
-});
-
-test('it reconnects when ping is not ok', async function(assert) {
-	const NOT_OK = 404;
-	const server = sinon.fakeServer.create();
-	const service = this.subject({ state: null });
-
-	server.respondWith('GET', '/favicon.ico', [NOT_OK, {}, '']);
-
-	service.set('state', STATES.RECONNECTING);
-
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-	server.respond();
-
-	await settled();
-
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
-	assert.equal(server.requests.length, 1);
-
-	server.restore();
-});
-
-test('it keeps reconnecting when ping fails until it goes fine', async function(assert) {
-	const FAIL = 0;
-	const OK = 200;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-	const multiplier = 1.5;
-	const max = 60000;
-	const times = 10;
-	let delay = 5000;
-	let i = times, j = times;
-
-	server.respondWith('GET', '/favicon.ico', (xhr) => {
-		if (!i) {
-			xhr.respond(OK, {}, '');
-			return;
-		}
-
-		xhr.respond(FAIL, {}, '');
-
-		i--;
+		service.off('change');
 	});
 
-	service.set('state', STATES.RECONNECTING);
+	this.goLimited();
+});
 
-	while (j) {
-		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
+test('it sends change action on offline event', async function(assert) {
+	assert.expect(1);
 
-		server.respond();
+	this.goOnline();
 
-		await wait(forSettledWaiters);
-
-		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-		clock.tick(delay);
-
-		delay *= multiplier;
-
-		if (delay > max) {
-			delay = max;
-		}
-
-		await wait(forSettledTimers);
-
-		j--;
-	}
-
-	server.respond();
-
-	await wait(forSettledWaiters);
-
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+	const service = this.subject();
 
 	await settled();
 
-	assert.equal(server.requests.length, times + 1);
+	service.on('change', (newState) => {
+		assert.equal(newState, STATES.OFFLINE, 'event for change');
 
-	server.restore();
-	clock.restore();
-});
-
-test('it keeps reconnecting after a successful reconnect', async function(assert) {
-	const FAIL = 0;
-	const OK = 200;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-	const delay = 5000;
-	let times = 3;
-	let localTimes = 2;
-
-	server.respondWith('GET', '/favicon.ico', (xhr) => {
-		if (times % 2 === 0) {
-			xhr.respond(OK, {}, '');
-			return;
-		}
-
-		xhr.respond(FAIL, {}, '');
-
-		times--;
+		service.off('change');
 	});
 
-	while (localTimes) {
-		service.set('state', STATES.RECONNECTING);
-
-		server.respond(); // fail
-
-		await wait(forSettledWaiters);
-
-		clock.tick(delay);
-
-		await wait(forSettledTimers);
-
-		server.respond(); // ok
-
-		await wait(forSettledWaiters);
-
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
-
-		localTimes--;
-	}
-
-	await settled();
-
-	assert.equal(server.requests.length, times + 1);
-
-	server.restore();
-	clock.restore();
+	this.goOffline();
 });
 
-test('it keeps reconnecting until max times', async function(assert) {
-	const maxTimes = 2;
-	const multiplier = 1.5;
-	const max = 60000;
-	let delay = 5000;
-
-	this.config.reconnect = {
-		maxTimes
-	};
-
-	const FAIL = 0;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-	let i = maxTimes;
-
-	server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
-
-	service.set('state', STATES.RECONNECTING);
-
-	while (i) {
-		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-		server.respond();
-
-		await wait(forSettledWaiters);
-
-		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-		clock.tick(delay);
-
-		delay *= multiplier;
-
-		if (delay > max) {
-			delay = max;
-		}
-
-		await wait(forSettledTimers);
-
-		i--;
-	}
-
-	server.respond();
-
-	await wait(forSettledWaiters);
-
-	assert.equal(service.get('state'), STATES.LIMITED, 'state is limited');
-
-	await settled();
-
-	assert.equal(server.requests.length, maxTimes + 1);
-
-	server.restore();
-	clock.restore();
-});
+// remaining
 
 test('it returns remaining time for next reconnect', async function(assert) {
-	const FAIL = 0;
-	const OK = 200;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-	const delay = 5000;
-	let times = 1;
-
-	server.respondWith('GET', '/favicon.ico', (xhr) => {
-		if (!times) {
-			xhr.respond(OK, {}, '');
-			return;
-		}
-
-		xhr.respond(FAIL, {}, '');
-
-		times--;
-	});
-
-	service.set('state', STATES.RECONNECTING);
-
-	assert.ok(isNaN(service.get('remaining')), 'remaining is not available');
-
-	server.respond(); // fail
-
-	await wait(forSettledWaiters);
-
-	assert.equal(service.get('remaining'), delay, 'remaining is expected');
-
-	clock.tick(delay / 2);
-
-	assert.equal(service.get('remaining'), delay / 2, 'remaining is expected');
-
-	clock.tick(delay / 2);
-
-	await wait(forSettledTimers);
-
-	server.respond(); // ok
-
-	await wait(forSettledWaiters);
-
-	assert.ok(isNaN(service.get('remaining')), 'remaining is not available');
-
-	server.restore();
-	clock.restore();
-});
-
-test('it does not try to reconnect when state changes', async function(assert) {
-	const FAIL = 0;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-
-	server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
-
-	service.set('state', STATES.RECONNECTING);
-
-	server.respond();
-
-	await wait(forSettledWaiters);
-
-	service.set('state', STATES.OFFLINE);
-
-	await settled();
-
-	assert.equal(service.get('state'), STATES.OFFLINE, 'state is offline');
-	assert.equal(server.requests.length, 1);
-
-	server.restore();
-	clock.restore();
-});
-
-test('it reads reconnection configuration from app', async function(assert) {
-	const path = '/foo.ico';
-	const multiplier = 2;
-	const maxDelay = 120000;
-	let delay = 10000;
+	this.goLimited();
 
 	this.config.reconnect = {
-		multiplier, maxDelay, delay, path
+		auto: true,
+		delay: 5000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: 3
 	};
 
-	const FAIL = 0;
-	const OK = 200;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-	const times = 10;
-	let i = times, j = times;
-
-	server.respondWith('GET', path, (xhr) => {
-		if (!i) {
-			xhr.respond(OK, {}, '');
-			return;
-		}
-
-		xhr.respond(FAIL, {}, '');
-
-		i--;
-	});
-
-	service.set('state', STATES.RECONNECTING);
-
-	while (j) {
-		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-		server.respond();
-
-		await wait(forSettledWaiters);
-
-		assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-
-		clock.tick(delay);
-
-		delay *= multiplier;
-
-		if (delay > maxDelay) {
-			delay = maxDelay;
-		}
-
-		await wait(forSettledTimers);
-
-		j--;
-	}
-
-	server.respond();
+	const service = this.subject();
 
 	await wait(forSettledWaiters);
 
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+	assert.ok(service.get('hasTimer'), 'timer is enabled');
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
+	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+
+	await this.tick(2);
+
+	assert.ok(service.get('hasTimer'), 'timer is enabled');
+	assert.equal(service.get('remaining'), 3000, 'second remaining is expected');
+	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+
+	await this.tick(5);
+
+	assert.ok(service.get('hasTimer'), 'timer is enabled');
+	assert.equal(service.get('remaining'), 8000, 'third remaining is expected');
+	assert.equal(this.sandbox.server.requestCount, 2, 'requests are expected');
+
+	await this.tick(10);
+
+	assert.notOk(service.get('hasTimer'), 'timer is disabled');
+	assert.ok(isNaN(service.get('remaining')), 'forth remaining is expected');
+	assert.equal(this.sandbox.server.requestCount, 3, 'requests are expected');
+});
+
+// config
+
+test('it allows path config', async function(assert) {
+	const path = '/foo/bar';
+
+	this.goOnline();
+
+	this.config.reconnect = {
+		path
+	};
+
+	this.sandbox.server.respondWith('GET', path, [200, {}, '']);
+
+	const service = this.subject();
 
 	await settled();
 
-	assert.equal(server.requests.length, times + 1);
-
-	server.restore();
-	clock.restore();
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 });
 
-test('it retries reconnect when forced', async function(assert) {
-	const FAIL = 0;
-	const OK = 200;
-	const server = sinon.fakeServer.create();
-	const clock = sinon.useFakeTimers();
-	const service = this.subject({ state: null });
-	const delay = 5000;
-	const multiplier = 1.5;
-	const times = 2;
-	let i = times;
+// fetch time
 
-	server.respondWith('GET', '/favicon.ico', (xhr) => {
-		if (!i) {
-			xhr.respond(OK, {}, '');
-			return;
-		}
+only('it saves fetch time', async function(assert) {
+	this.sandbox.server.respondImmediately = false;
+	this.sandbox.server.autoRespond = true;
+	this.sandbox.server.autoRespondAfter = 5000;
 
-		xhr.respond(FAIL, {}, '');
+	this.goLimited();
 
-		i--;
-	});
+	this.config.reconnect = {
+		auto: false
+	};
 
-	service.set('state', STATES.RECONNECTING);
+	const service = this.subject();
 
-	server.respond(); // fail
-
-	await wait(forSettledWaiters);
-
-	clock.tick(delay / 2);
-
-	service.reconnect();
-
-	server.respond(); // fail
-
-	await wait(forSettledWaiters);
-
-	assert.equal(service.get('remaining'), delay * multiplier, 'remaining is expected');
-
-	clock.tick(delay * multiplier);
-
-	await wait(forSettledTimers);
-
-	server.respond(); // ok
-
-	await wait(forSettledWaiters);
-
-	assert.equal(service.get('state'), STATES.ONLINE, 'state is online');
+	this.sandbox.clock.tick(5000);
 
 	await settled();
 
-	assert.equal(server.requests.length, times + 1, 'requests are made');
-
-	server.restore();
-	clock.restore();
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(service.get('lastReconnectDuration'), 5000, 'duration is expected');
 });
-
-test('it changes state to reconnect from online when forced', function(assert) {
-	const service = this.subject({ state: STATES.ONLINE });
-
-	service.reconnect();
-
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-});
-
-test('it changes state to reconnect from offline when forced', function(assert) {
-	const service = this.subject({ state: STATES.OFFLINE });
-
-	service.reconnect();
-
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-});
-
-test('it changes state to reconnect from offline when forced', function(assert) {
-	const service = this.subject({ state: STATES.LIMITED });
-
-	service.reconnect();
-
-	assert.equal(service.get('state'), STATES.RECONNECTING, 'state is reconnecting');
-});
-
