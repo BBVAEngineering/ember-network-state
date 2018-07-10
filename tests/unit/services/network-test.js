@@ -1,5 +1,5 @@
 /* eslint max-statements: 0 no-magic-numbers:0 */
-import { moduleFor, test, only } from 'ember-qunit';
+import { moduleFor, test } from 'ember-qunit';
 import { STATES } from 'ember-network-state/constants';
 import sinon from 'sinon';
 import settled, { getSettledState } from '@ember/test-helpers/settled';
@@ -322,7 +322,9 @@ test('"state" property cannot be changed', async function(assert) {
 
 	await settled();
 
-	service.set('state', STATES.ONLINE);
+	assert.throws(() => {
+		service.set('state', STATES.ONLINE);
+	});
 
 	await settled();
 
@@ -631,7 +633,7 @@ test('it allows path config', async function(assert) {
 
 // fetch time
 
-only('it saves fetch time', async function(assert) {
+test('it saves fetch time', async function(assert) {
 	this.sandbox.server.respondImmediately = false;
 	this.sandbox.server.autoRespond = true;
 	this.sandbox.server.autoRespondAfter = 5000;

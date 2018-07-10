@@ -5,7 +5,7 @@ import { STATES, CONFIG } from '../constants';
 import fetch from 'fetch';
 import { cancel, later, once } from '@ember/runloop';
 import { getOwner } from '@ember/application';
-import { equal, notEmpty } from '@ember/object/computed';
+import { equal, notEmpty, reads } from '@ember/object/computed';
 
 function getConnection() {
 	return window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection;
@@ -23,14 +23,7 @@ export default Service.extend(Evented, {
 	 * @property state
 	 * @type {String}
 	 */
-	state: computed('_state', {
-		get() {
-			return this.get('_state');
-		},
-		set() {
-			return this.get('_state');
-		}
-	}),
+	state: reads('_state').readOnly(),
 
 	/**
 	 * Check when network is online.
@@ -278,8 +271,10 @@ export default Service.extend(Evented, {
 		} catch (e) {
 			this._handleError(e);
 		} finally {
-			this.set('lastReconnectDuration', Date.now() - start);
-			this.set('isReconnecting', false);
+			this.setProperties({
+				lastReconnectDuration: Date.now() - start,
+				isReconnecting: false
+			});
 		}
 	},
 
