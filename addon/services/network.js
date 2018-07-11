@@ -7,10 +7,6 @@ import { cancel, later, once } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, reads } from '@ember/object/computed';
 
-function getConnection() {
-	return window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection;
-}
-
 export default Service.extend(Evented, {
 
 	/**
@@ -99,7 +95,7 @@ export default Service.extend(Evented, {
 	init() {
 		this._super(...arguments);
 
-		const connection = getConnection();
+		const connection = this.get('_connection');
 		const appConfig = getOwner(this).resolveRegistration('config:environment');
 		const addonConfig = getWithDefault(appConfig, 'network-state', {});
 		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
@@ -142,16 +138,26 @@ export default Service.extend(Evented, {
 	willDestroy() {
 		this._super(...arguments);
 
-		const network = this.get('connection');
+		const connection = this.get('_connection');
 		const changeNetworkBinding = this.get('_changeNetworkBinding');
 
 		window.removeEventListener('online', changeNetworkBinding);
 		window.removeEventListener('offline', changeNetworkBinding);
 
-		if (network) {
-			network.removeEventListener('change', changeNetworkBinding);
+		if (connection) {
+			connection.removeEventListener('change', changeNetworkBinding);
 		}
 	},
+
+	/**
+	 * Access to connection API.
+	 *
+	 * @property _connection
+	 * @type {Object}
+	 */
+	_connection: computed(() =>
+		window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection
+	),
 
 	/**
 	 * State property. Posible values:
