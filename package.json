@@ -22,12 +22,12 @@
   },
   "dependencies": {
     "ember-cli-babel": "^6.6.0",
-    "ember-fetch": "^3.4.5"
+    "ember-fetch": "^5.0.1"
   },
   "devDependencies": {
     "broccoli-asset-rev": "^2.4.5",
     "ember-ajax": "^3.0.0",
-    "ember-cli": "~2.17.0",
+    "ember-cli": "~3.2.0",
     "ember-cli-dependency-checker": "^2.0.0",
     "ember-cli-htmlbars": "^2.0.1",
     "ember-cli-htmlbars-inline-precompile": "^1.0.0",
@@ -42,8 +42,8 @@
     "ember-load-initializers": "^1.0.0",
     "ember-resolver": "^4.0.0",
     "ember-sinon": "^2.1.0",
-    "ember-source": "~2.17.0",
-    "eslint": "^3.0.0",
+    "ember-source": "~3.2.2",
+    "eslint": "^5.1.0",
     "eslint-config-bbva": "^2.0.0",
     "loader.js": "^4.2.3"
   },
