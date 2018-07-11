@@ -2,18 +2,24 @@
 
 [![Build Status](https://travis-ci.org/BBVAEngineering/ember-network-state.svg?branch=master)](https://travis-ci.org/BBVAEngineering/ember-network-state)
 [![GitHub version](https://badge.fury.io/gh/BBVAEngineering%2Fember-network-state.svg)](https://badge.fury.io/gh/BBVAEngineering%2Fember-network-state)
-[![npm version](https://badge.fury.io/js/ember-network-state.svg)](https://badge.fury.io/js/ember-network-state)
+[![NPM version](https://badge.fury.io/js/ember-network-state.svg)](https://badge.fury.io/js/ember-network-state)
 [![Dependency Status](https://david-dm.org/BBVAEngineering/ember-network-state.svg)](https://david-dm.org/BBVAEngineering/ember-network-state)
 
 ## Information
 
 [![NPM](https://nodei.co/npm/ember-network-state.png?downloads=true&downloadRank=true)](https://nodei.co/npm/ember-network-state/)
 
-Check and react on network state of your progressive web app.
+Check and react network state of your progressive web app.
 
-The browser provides network property `window.navigator.onLine` and events `online` and `offline`. The problem is that this API is not reliable, we can have an interface connection (phone is not on airplane mode, we have wifi data) but the network may not have access to the internet.
+The browser provides network property `window.navigator.onLine` and events `online` and `offline`. The problem is that this API is not reliable, we can have an interface connection (phone is not on airplane mode, we have WiFi data) but the network may not have access to the internet.
 
-In order to confirm the connection status, this addon pings a url (by default it is the favicon.ico) when it detects that user supposedly have connectivity again (that would be the state `reconnecting`). When the ping ends and it goes ok, it will switch to `online` status, but if ping doesn't go ok, this addon will keep the state `offline` and it will schedule a ping every certain time keeping the status `reconnecting.
+In order to confirm the connection status, this addon pings a URL (by default it is the `favicon.ico`) when it detects that user supposedly have connectivity again. When the ping ends and it goes OK, it will switch to `online` state, but if ping doesn't go OK, this addon will keep the state `limited` and it will schedule a ping every certain time.
+
+If the browser has implemented [connection API](http://wicg.github.io/netinfo/), it will listen for changes on network quality as well.
+
+Below is an example of all states of the service:
+
+![States](./states.png)
 
 ## Usage
 
@@ -35,7 +41,7 @@ export default Component.extend({
 
 #### Properties
 
-- `state`: returns current state of the network. Posible values: `ONLINE`, `OFFLINE` and `RECONNECTING`. You can import values from:
+- `state`: returns current state of the network. Possible values: `ONLINE`, `OFFLINE` and `LIMITED`. You can import values from:
   `import { STATES } from 'ember-network-state/constants';`
 
 - `remaining`: returns remaining milliseconds to next reconnect.
@@ -44,7 +50,13 @@ export default Component.extend({
 
 - `isOffline`: computed value from `state` that returns when is `OFFLINE`.
 
-- `isReconnecting`: computed value from `state` that returns when is `RECONNECTING`.
+- `isLimited`: computed value from `state` that returns when is `LIMITED`.
+
+- `isReconnecting`: checks when service is testing for connection.
+
+- `hasTimer`: checks when service has scheduled a timer.
+
+- `lastReconnectDuration`: saves last reconnect duration.
 
 #### Methods
 
@@ -54,27 +66,27 @@ export default Component.extend({
 
 You can subscribe to the `change` event to receive changes on `state` property.
 
-```
-init() {
-  const network = this.get('network');
+```javascript
+const network = this.get('network');
 
-  network.on('change', (state) => {});
-}
+network.on('change', (state) => {});
 ```
 
 ### Configuration
 
 The addon can be configured in `config/environment.js` of your app.
 
-```
+```javascript
 module.exports = function(/* environment */) {
   return {
-    network: {
+    'network-state': {
       reconnect: {
+        auto: true,
         path: '/favicon.ico',
         delay: 5000,
         multiplier: 1.5,
-        max: 60000
+        maxDelay: 60000,
+        maxTimes: -1
       }
     }
   };
@@ -84,10 +96,12 @@ module.exports = function(/* environment */) {
 Posible values:
 
 - `reconnect`: Object to configure reconnect parameters.
+  - `auto`: Auto reconnects when network changes.
   - `path`: Path to request on reconnect. Default: `/favicon.ico`.
   - `delay`: Initial delay for retry a reconnection. Default: `5000`.
   - `multiplier`: Increment for next retry. Next delay will be `delay * multiplier`. Default: `1.5`.
-  - `max`: Maximum time for a reconnect. Default: `60000`.
+  - `maxDelay`: Maximum delay for a reconnect. Default: `60000`.
+  - `maxTimes`: Maximum times for a reconnect. When value is negative, its `Infinity`. Default: `-1`.
 
 ## Contribute
 
@@ -96,7 +110,6 @@ If you want to contribute to this addon, please read the [CONTRIBUTING.md](CONTR
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/BBVAEngineering/ember-network-state/tags).
-
 
 ## Authors
 

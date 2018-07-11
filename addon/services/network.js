@@ -3,36 +3,23 @@ import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
 import fetch from 'fetch';
-import { cancel, later } from '@ember/runloop';
+import { cancel, later, once } from '@ember/runloop';
 import { getOwner } from '@ember/application';
-
-const { navigator } = window;
+import { equal, notEmpty, reads } from '@ember/object/computed';
 
 export default Service.extend(Evented, {
-
-	/**
-	 * Navigator proxy for testing.
-	 *
-	 * @property navigator
-	 * @type {Object}
-	 */
-	navigator,
 
 	/**
 	 * State property. Posible values:
 	 *
 	 *  * ONLINE
 	 *  * OFFLINE
-	 *  * RECONNECTING
+	 *  * LIMITED
 	 *
 	 * @property state
 	 * @type {String}
 	 */
-	state: computed(function() {
-		const onLine = this.get('navigator.onLine');
-
-		return onLine ? STATES.ONLINE : STATES.OFFLINE;
-	}),
+	state: reads('_state').readOnly(),
 
 	/**
 	 * Check when network is online.
@@ -40,7 +27,7 @@ export default Service.extend(Evented, {
 	 * @property isOnline
 	 * @type {Boolean}
 	 */
-	isOnline: computed.equal('state', STATES.ONLINE),
+	isOnline: equal('_state', STATES.ONLINE),
 
 	/**
 	 * Check when network is offline.
@@ -48,7 +35,15 @@ export default Service.extend(Evented, {
 	 * @property isOffline
 	 * @type {Boolean}
 	 */
-	isOffline: computed.equal('state', STATES.OFFLINE),
+	isOffline: equal('_state', STATES.OFFLINE),
+
+	/**
+	 * Check when network is limited.
+	 *
+	 * @property isLimited
+	 * @type {Boolean}
+	 */
+	isLimited: equal('_state', STATES.LIMITED),
 
 	/**
 	 * Check when network is reconnecting.
@@ -56,7 +51,15 @@ export default Service.extend(Evented, {
 	 * @property isReconnecting
 	 * @type {Boolean}
 	 */
-	isReconnecting: computed.equal('state', STATES.RECONNECTING),
+	isReconnecting: false,
+
+	/**
+	 * Check when timer is enabled.
+	 *
+	 * @property hasTimer
+	 * @type {Boolean}
+	 */
+	hasTimer: notEmpty('_timer'),
 
 	/**
 	 * Remaining time for next reconnect.
@@ -77,6 +80,14 @@ export default Service.extend(Evented, {
 	}).volatile(),
 
 	/**
+	 * Last reconnect duration.
+	 *
+	 * @property lastReconnectDuration
+	 * @type {Number}
+	 */
+	lastReconnectDuration: 0,
+
+	/**
 	 * Init window listeners.
 	 *
 	 * @method init
@@ -84,16 +95,29 @@ export default Service.extend(Evented, {
 	init() {
 		this._super(...arguments);
 
+		const connection = this.get('_connection');
 		const appConfig = getOwner(this).resolveRegistration('config:environment');
-		const addonConfig = getWithDefault(appConfig, 'network', {});
-		const config = Object.assign({}, CONFIG, addonConfig);
+		const addonConfig = getWithDefault(appConfig, 'network-state', {});
+		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
 
-		this.set('_config', config);
+		this.set('_config', { reconnect });
 
 		const changeNetworkBinding = this.get('_changeNetworkBinding');
 
 		window.addEventListener('online', changeNetworkBinding);
 		window.addEventListener('offline', changeNetworkBinding);
+
+		if (connection) {
+			connection.addEventListener('change', changeNetworkBinding);
+		}
+
+		const onLine = window.navigator.onLine;
+
+		this.set('_state', onLine ? STATES.ONLINE : STATES.OFFLINE);
+
+		if (onLine) {
+			this.reconnect();
+		}
 	},
 
 	/**
@@ -102,14 +126,8 @@ export default Service.extend(Evented, {
 	 * @method reconnect
 	 */
 	reconnect() {
-		const state = this.get('state');
-
-		if (state !== STATES.RECONNECTING) {
-			this.set('state', STATES.RECONNECTING);
-		} else {
-			this._clearTimer();
-			this._reconnect();
-		}
+		this._clearTimer();
+		this._reconnect();
 	},
 
 	/**
@@ -120,11 +138,39 @@ export default Service.extend(Evented, {
 	willDestroy() {
 		this._super(...arguments);
 
+		const connection = this.get('_connection');
 		const changeNetworkBinding = this.get('_changeNetworkBinding');
 
 		window.removeEventListener('online', changeNetworkBinding);
 		window.removeEventListener('offline', changeNetworkBinding);
+
+		if (connection) {
+			connection.removeEventListener('change', changeNetworkBinding);
+		}
 	},
+
+	/**
+	 * Access to connection API.
+	 *
+	 * @property _connection
+	 * @type {Object}
+	 */
+	_connection: computed(() =>
+		window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection
+	),
+
+	/**
+	 * State property. Posible values:
+	 *
+	 *  * ONLINE
+	 *  * OFFLINE
+	 *  * LIMITED
+	 *
+	 * @property _state
+	 * @type {String}
+	 * @private
+	 */
+	_state: null,
 
 	/**
 	 * Handles network change.
@@ -132,16 +178,10 @@ export default Service.extend(Evented, {
 	 * @method _onChange
 	 * @private
 	 */
-	_onChange: observer('state', function() {
-		const state = this.get('state');
-
-		this.set('_nextDelay');
+	_onChange: observer('_state', function() {
+		const state = this.get('_state');
 
 		this._clearTimer();
-
-		if (state === STATES.RECONNECTING) {
-			this._reconnect();
-		}
 
 		this.trigger('change', state);
 	}),
@@ -160,6 +200,8 @@ export default Service.extend(Evented, {
 			this.set('_timer');
 		}
 
+		this.set('_nextDelay');
+		this.set('_times', 0);
 		this.set('_timestamp');
 	},
 
@@ -172,6 +214,14 @@ export default Service.extend(Evented, {
 	_timer: null,
 
 	/**
+	 * Retry times.
+	 *
+	 * @property _times
+	 * @type {Number}
+	 */
+	_times: 0,
+
+	/**
 	 * Change network binding.
 	 *
 	 * @property changeNetworkBinding
@@ -179,8 +229,18 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	_changeNetworkBinding: computed(function() {
-		return this._changeNetwork.bind(this);
+		return this._scheduleChangeNetwork.bind(this);
 	}),
+
+	/**
+	 * Scheldule network change only once.
+	 *
+	 * @method _scheduleChangeNetwork
+	 * @private
+	 */
+	_scheduleChangeNetwork() {
+		once(this, '_changeNetwork', ...arguments);
+	},
 
 	/**
 	 * React to network changes.
@@ -189,10 +249,13 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	_changeNetwork() {
-		const onLine = this.get('navigator.onLine');
-		const state = onLine ? STATES.RECONNECTING : STATES.OFFLINE;
+		const onLine = window.navigator.onLine;
 
-		this.set('state', state);
+		if (!onLine) {
+			this.set('_state', STATES.OFFLINE);
+		} else {
+			this.reconnect();
+		}
 	},
 
 	/**
@@ -203,13 +266,44 @@ export default Service.extend(Evented, {
 	 */
 	async _reconnect() {
 		const { reconnect } = this.get('_config');
+		const start = Date.now();
+
+		this.set('isReconnecting', true);
 
 		try {
 			await fetch(reconnect.path);
 
-			this.set('state', STATES.ONLINE);
+			this.set('_state', STATES.ONLINE);
 		} catch (e) {
-			this._delayReconnect();
+			this._handleError(e);
+		} finally {
+			this.setProperties({
+				lastReconnectDuration: Date.now() - start,
+				isReconnecting: false
+			});
+		}
+	},
+
+	/**
+	 * Handle error from fetch.
+	 *
+	 * @method _handleError
+	 * @param {Error} e
+	 * @private
+	 */
+	_handleError() {
+		const { reconnect } = this.get('_config');
+		const onLine = window.navigator.onLine;
+
+		if (onLine) {
+			this.set('_state', STATES.LIMITED);
+
+			if (reconnect.auto) {
+				this.incrementProperty('_times');
+				this._delayReconnect();
+			}
+		} else {
+			this.set('_state', STATES.OFFLINE);
 		}
 	},
 
@@ -222,10 +316,17 @@ export default Service.extend(Evented, {
 	_delayReconnect() {
 		const { reconnect } = this.get('_config');
 		const delay = this.getWithDefault('_nextDelay', reconnect.delay);
+		const times = this.get('_times');
 		let nextDelay = delay * reconnect.multiplier;
 
-		if (nextDelay > reconnect.max) {
-			nextDelay = reconnect.max;
+		if (reconnect.maxTimes > -1 && times >= reconnect.maxTimes) {
+			this._clearTimer();
+			this.set('_state', STATES.LIMITED);
+			return;
+		}
+
+		if (nextDelay > reconnect.maxDelay) {
+			nextDelay = reconnect.maxDelay;
 		}
 
 		const timer = later(this, '_reconnect', delay);
