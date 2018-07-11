@@ -7,7 +7,7 @@
 
 ## Information
 
-[![NPM](https://nodei.co/npm/ember-network-state.png?downloads=true&downloadRank=true)](https://nodei.co/npm/ember-network-state/)
+[![NPM](https://nodei.co/npm/ember-network-state.png?downloads=true&downloadRank=true)](https://nodei.co/npm/ember-network-state/) [![Greenkeeper badge](https://badges.greenkeeper.io/BBVAEngineering/ember-network-state.svg)](https://greenkeeper.io/)
 
 Check and react network state of your progressive web app.
 
