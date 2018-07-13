@@ -4,6 +4,8 @@
 [![GitHub version](https://badge.fury.io/gh/BBVAEngineering%2Fember-network-state.svg)](https://badge.fury.io/gh/BBVAEngineering%2Fember-network-state)
 [![NPM version](https://badge.fury.io/js/ember-network-state.svg)](https://badge.fury.io/js/ember-network-state)
 [![Dependency Status](https://david-dm.org/BBVAEngineering/ember-network-state.svg)](https://david-dm.org/BBVAEngineering/ember-network-state)
+[![codecov](https://codecov.io/gh/BBVAEngineering/ember-network-state/branch/master/graph/badge.svg)](https://codecov.io/gh/BBVAEngineering/ember-network-state)
+[![Greenkeeper badge](https://badges.greenkeeper.io/BBVAEngineering/ember-network-state.svg)](https://greenkeeper.io/)
 
 ## Information
 
