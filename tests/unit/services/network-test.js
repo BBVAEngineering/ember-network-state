@@ -2,9 +2,12 @@
 import { moduleFor, test } from 'ember-qunit';
 import { STATES } from 'ember-network-state/constants';
 import sinon from 'sinon';
-import settled, { getSettledState } from '@ember/test-helpers/settled';
+import { getSettledState, isSettled } from '@ember/test-helpers/settled';
 import waitUntil from '@ember/test-helpers/wait-until';
-import { begin, end } from '@ember/runloop';
+import { bind } from '@ember/runloop';
+import Ember from 'ember';
+
+const { Test } = Ember;
 
 function forSettledWaiters() {
 	const { hasPendingWaiters } = getSettledState();
@@ -16,12 +19,8 @@ function wait(fn) {
 	return waitUntil(fn, { timeout: Infinity });
 }
 
-function run(fn) {
-	return () => {
-		begin();
-		fn();
-		end();
-	};
+function waitForIdle() {
+	return waitUntil(() => isSettled() && !Test.checkWaiters(), { timeout: Infinity });
 }
 
 function asyncFetch(context) {
@@ -35,7 +34,7 @@ function asyncFetch(context) {
 function goOnline(context) {
 	const OK = 200;
 
-	return run(() => {
+	return bind(() => {
 		context.sandbox.server.respondWith('GET', '/favicon.ico', [OK, {}, '']);
 
 		if (!context.navigator.onLine) {
@@ -52,7 +51,7 @@ function goOnline(context) {
 function goOffline(context) {
 	const FAIL = 0;
 
-	return run(() => {
+	return bind(() => {
 		context.sandbox.server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
 
 		if (context.navigator.onLine) {
@@ -69,7 +68,7 @@ function goOffline(context) {
 function goLimited(context) {
 	const FAIL = 0;
 
-	return run(() => {
+	return bind(() => {
 		context.sandbox.server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
 
 		if (!context.navigator.onLine) {
@@ -86,7 +85,7 @@ function goLimited(context) {
 function tick(context) {
 	const SECOND = 1000;
 
-	return async (time) => {
+	return async(time) => {
 		for (let i = 0; i < time; i++) {
 			try {
 				context.tick(SECOND);
@@ -130,7 +129,7 @@ moduleFor('service:network', 'Unit | Services | network', {
 
 		this.sandbox.restore();
 
-		await settled();
+		await waitForIdle();
 	}
 });
 
@@ -153,7 +152,7 @@ test('it is online', async function(assert) {
 	assert.notOk(service.get('isOffline'), 'service is not offline');
 	assert.ok(service.get('isReconnecting'), 'state is expected');
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 	assert.ok(service.get('isOnline'), 'service is online');
@@ -167,7 +166,7 @@ test('it is offline', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
 	assert.notOk(service.get('isOnline'), 'service is not online');
@@ -187,7 +186,7 @@ test('it is limited', async function(assert) {
 	assert.notOk(service.get('isOffline'), 'service is not offline');
 	assert.ok(service.get('isReconnecting'), 'state is expected');
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 	assert.notOk(service.get('isOnline'), 'service is not online');
@@ -203,17 +202,11 @@ test('it changes to online from offline', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	this.goOnline();
 
-	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
-	assert.notOk(service.get('isOnline'), 'service is not online');
-	assert.notOk(service.get('isLimited'), 'service is not limited');
-	assert.ok(service.get('isOffline'), 'service is offline');
-	assert.ok(service.get('isReconnecting'), 'state is expected');
-
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 	assert.ok(service.get('isOnline'), 'service is online');
@@ -228,11 +221,11 @@ test('it changes to offline from online', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	this.goOffline();
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
 	assert.notOk(service.get('isOnline'), 'service is not online');
@@ -246,11 +239,11 @@ test('it changes to offline from limited', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	this.goOffline();
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
 	assert.notOk(service.get('isOnline'), 'service is not online');
@@ -266,17 +259,11 @@ test('it changes to limited from online', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	this.goLimited();
 
-	assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
-	assert.ok(service.get('isOnline'), 'service is online');
-	assert.notOk(service.get('isLimited'), 'service is not limited');
-	assert.notOk(service.get('isOffline'), 'service is not offline');
-	assert.ok(service.get('isReconnecting'), 'state is expected');
-
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 	assert.notOk(service.get('isOnline'), 'service is not online');
@@ -290,15 +277,14 @@ test('it tests online connection on network change', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	this.goOnline();
 
-	assert.ok(service.get('isReconnecting'), 'state is expected');
-
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 2, 'requests are expected');
 });
 
 test('it supports no implementations of connection API', async function(assert) {
@@ -308,7 +294,7 @@ test('it supports no implementations of connection API', async function(assert) 
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	this.goOnline();
 
@@ -320,13 +306,13 @@ test('"state" property cannot be changed', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	assert.throws(() => {
 		service.set('state', STATES.ONLINE);
 	});
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
 });
@@ -338,13 +324,13 @@ test('it reconnects from online', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	service.reconnect();
 
 	assert.ok(service.get('isReconnecting'), 'initial state is expected');
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 });
@@ -354,13 +340,13 @@ test('it reconnects from offline', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	service.reconnect();
 
 	assert.ok(service.get('isReconnecting'), 'initial state is expected');
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
 });
@@ -370,13 +356,13 @@ test('it reconnects from limited', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	service.reconnect();
 
 	assert.ok(service.get('isReconnecting'), 'initial state is expected');
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 });
@@ -521,7 +507,7 @@ test('it sends change action on online event', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	service.on('change', (newState) => {
 		assert.equal(newState, STATES.ONLINE, 'event for change');
@@ -530,6 +516,8 @@ test('it sends change action on online event', async function(assert) {
 	});
 
 	this.goOnline();
+
+	await waitForIdle();
 });
 
 test('it sends change action on limited event', async function(assert) {
@@ -541,7 +529,7 @@ test('it sends change action on limited event', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	service.on('change', (newState) => {
 		assert.equal(newState, STATES.LIMITED, 'event for change');
@@ -550,6 +538,8 @@ test('it sends change action on limited event', async function(assert) {
 	});
 
 	this.goLimited();
+
+	await waitForIdle();
 });
 
 test('it sends change action on offline event', async function(assert) {
@@ -559,7 +549,7 @@ test('it sends change action on offline event', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	service.on('change', (newState) => {
 		assert.equal(newState, STATES.OFFLINE, 'event for change');
@@ -568,6 +558,8 @@ test('it sends change action on offline event', async function(assert) {
 	});
 
 	this.goOffline();
+
+	await waitForIdle();
 });
 
 // remaining
@@ -611,6 +603,39 @@ test('it returns remaining time for next reconnect', async function(assert) {
 	assert.equal(this.sandbox.server.requestCount, 3, 'requests are expected');
 });
 
+test('it never returns negative remaining', async function(assert) {
+	this.sandbox.server.respondImmediately = false;
+	this.sandbox.server.autoRespond = true;
+	this.sandbox.server.autoRespondAfter = 10;
+
+	this.goLimited();
+
+	this.config.reconnect = {
+		auto: true,
+		delay: 5000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: 2
+	};
+
+	const service = this.subject();
+
+	this.sandbox.clock.tick(10);
+
+	await wait(forSettledWaiters);
+
+	assert.ok(service.get('hasTimer'), 'timer is enabled');
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
+	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+
+	this.sandbox.clock.tick(5005);
+
+	assert.equal(service.get('remaining'), 0, 'third remaining is expected');
+
+	this.sandbox.clock.tick(5);
+});
+
 // config
 
 test('it allows path config', async function(assert) {
@@ -626,7 +651,7 @@ test('it allows path config', async function(assert) {
 
 	const service = this.subject();
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 });
@@ -648,7 +673,7 @@ test('it saves fetch time', async function(assert) {
 
 	this.sandbox.clock.tick(5000);
 
-	await settled();
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 	assert.equal(service.get('lastReconnectDuration'), 5000, 'duration is expected');
