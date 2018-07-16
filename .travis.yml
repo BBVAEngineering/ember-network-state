@@ -37,7 +37,8 @@ before_script:
   - greenkeeper-lockfile-update
 
 script:
-  - npm run lint:js
+  - commitlint-travis
+  - npm run list:js
   - COVERAGE=true node_modules/.bin/ember try:one $EMBER_TRY_SCENARIO --skip-cleanup
 
 after_script:
@@ -47,21 +48,17 @@ after_success:
   - codecov --file=coverage/lcov.info
 
 stages:
-  - commit
   - test
   - name: release
     if: branch = master
 
 jobs:
   include:
-    - stage: commit
-      env: []
-      script: commitlint-travis
     - stage: release
       script: skip
+      env: []
       deploy:
         provider: script
         skip_cleanup: true
-        env: []
         script:
           - npx semantic-release
