@@ -38,7 +38,7 @@ before_script:
 
 script:
   - commitlint-travis
-  - npm run list:js
+  - npm run lint:js
   - COVERAGE=true node_modules/.bin/ember try:one $EMBER_TRY_SCENARIO --skip-cleanup
 
 after_script:
