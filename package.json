@@ -20,7 +20,7 @@
     "start": "ember server",
     "test": "COVERAGE=true ember test",
     "posttest": "npm run report-coverage && npm run check-coverage",
-    "lint:js": "eslint ./*.js addon app config tests",
+    "lint:js": "eslint --max-warnings 0 ./*.js addon app config tests",
     "report-coverage": "istanbul report --include=coverage/coverage-final.json text",
     "check-coverage": "istanbul check-coverage coverage/coverage-final.json --statements 100 --functions 100 --branches 100 --lines 100"
   },
@@ -36,7 +36,6 @@
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "npm run lint:js && npm run test",
       "pre-push": "npm run lint:js && npm run test"
     }
   },
