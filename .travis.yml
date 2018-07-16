@@ -10,7 +10,7 @@ addons:
 cache:
   directories:
     - $HOME/.npm
-    - node_modules
+    - $HOME/.nvm
 
 env:
   - EMBER_TRY_SCENARIO=ember-release
