@@ -32,7 +32,7 @@ before_install:
   - npm --version
 
 install:
-  - npm ci
+  - if [[ $TRAVIS_BRANCH =~ greenkeeper || $TRAVIS_PULL_REQUEST_BRANCH =~ greenkeeper ]]; then npm install; else npm ci; fi
 
 before_script:
   - greenkeeper-lockfile-update
