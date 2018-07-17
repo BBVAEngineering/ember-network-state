@@ -20,7 +20,7 @@
     "start": "ember server",
     "test": "COVERAGE=true ember test",
     "posttest": "npm run report-coverage && npm run check-coverage",
-    "lint:js": "eslint ./*.js addon app config tests",
+    "lint:js": "eslint --max-warnings 0 ./*.js addon app config tests",
     "report-coverage": "istanbul report --include=coverage/coverage-final.json text",
     "check-coverage": "istanbul check-coverage coverage/coverage-final.json --statements 100 --functions 100 --branches 100 --lines 100"
   },
@@ -36,7 +36,6 @@
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS",
-      "pre-commit": "npm run lint:js && npm run test",
       "pre-push": "npm run lint:js && npm run test"
     }
   },
@@ -47,7 +46,7 @@
     "commitizen": "^2.10.1",
     "cz-conventional-changelog": "^2.1.0",
     "ember-ajax": "^3.0.0",
-    "ember-cli": "~3.2.0",
+    "ember-cli": "~3.3.0",
     "ember-cli-code-coverage": "1.0.0-beta.4",
     "ember-cli-dependency-checker": "^3.0.0",
     "ember-cli-eslint": "^4.2.3",
@@ -65,7 +64,7 @@
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-resolver": "^4.0.0",
     "ember-sinon": "^2.1.0",
-    "ember-source": "~3.2.2",
+    "ember-source": "~3.3.0",
     "ember-source-channel-url": "^1.0.1",
     "ember-try": "^0.2.23",
     "eslint": "^5.1.0",
