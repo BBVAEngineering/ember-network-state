@@ -678,3 +678,21 @@ test('it saves fetch time', async function(assert) {
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 	assert.equal(service.get('lastReconnectDuration'), 5000, 'duration is expected');
 });
+
+// never trust the API
+
+test('it goes online even when API is offline', async function(assert) {
+	this.goOffline();
+
+	const service = this.subject();
+
+	await waitForIdle();
+
+	this.sandbox.server.respondWith('GET', '/favicon.ico', [200, {}, '']);
+
+	service.reconnect();
+
+	await waitForIdle();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+});
