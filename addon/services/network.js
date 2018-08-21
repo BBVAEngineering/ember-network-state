@@ -7,6 +7,8 @@ import { cancel, later, once } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, reads } from '@ember/object/computed';
 
+const FETCH_OPTIONS = { method: 'HEAD', cache: 'no-store' };
+
 export default Service.extend(Evented, {
 
 	/**
@@ -271,7 +273,7 @@ export default Service.extend(Evented, {
 		this.set('isReconnecting', true);
 
 		try {
-			await fetch(reconnect.path, { cache: 'no-store' });
+			await fetch(reconnect.path, FETCH_OPTIONS);
 
 			this.set('_state', STATES.ONLINE);
 		} catch (e) {

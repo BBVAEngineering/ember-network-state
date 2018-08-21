@@ -35,7 +35,7 @@ function goOnline(context) {
 	const OK = 200;
 
 	return bind(() => {
-		context.sandbox.server.respondWith('GET', '/favicon.ico', [OK, {}, '']);
+		context.sandbox.server.respondWith('HEAD', '/favicon.ico', [OK, {}, '']);
 
 		if (!context.navigator.onLine) {
 			context.navigator.onLine = true;
@@ -52,7 +52,7 @@ function goOffline(context) {
 	const FAIL = 0;
 
 	return bind(() => {
-		context.sandbox.server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
+		context.sandbox.server.respondWith('HEAD', '/favicon.ico', [FAIL, {}, '']);
 
 		if (context.navigator.onLine) {
 			context.navigator.onLine = false;
@@ -69,7 +69,7 @@ function goLimited(context) {
 	const FAIL = 0;
 
 	return bind(() => {
-		context.sandbox.server.respondWith('GET', '/favicon.ico', [FAIL, {}, '']);
+		context.sandbox.server.respondWith('HEAD', '/favicon.ico', [FAIL, {}, '']);
 
 		if (!context.navigator.onLine) {
 			context.navigator.onLine = true;
@@ -647,7 +647,7 @@ test('it allows path config', async function(assert) {
 		path
 	};
 
-	this.sandbox.server.respondWith('GET', path, [200, {}, '']);
+	this.sandbox.server.respondWith('HEAD', path, [200, {}, '']);
 
 	const service = this.subject();
 
@@ -688,7 +688,7 @@ test('it goes online even when API is offline', async function(assert) {
 
 	await waitForIdle();
 
-	this.sandbox.server.respondWith('GET', '/favicon.ico', [200, {}, '']);
+	this.sandbox.server.respondWith('HEAD', '/favicon.ico', [200, {}, '']);
 
 	service.reconnect();
 
