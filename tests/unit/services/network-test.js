@@ -656,9 +656,9 @@ test('it allows path config', async function(assert) {
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 });
 
-// fetch time
+// fetch
 
-test('it saves fetch time', async function(assert) {
+test('it knows last reconnect duration', async function(assert) {
 	this.sandbox.server.respondImmediately = false;
 	this.sandbox.server.autoRespond = true;
 	this.sandbox.server.autoRespondAfter = 5000;
@@ -677,6 +677,30 @@ test('it saves fetch time', async function(assert) {
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 	assert.equal(service.get('lastReconnectDuration'), 5000, 'duration is expected');
+});
+
+test('it knows last reconnect status', async function(assert) {
+	this.goOnline();
+
+	this.sandbox.server.respondWith('HEAD', '/favicon.ico', [404, {}, '']);
+
+	this.config.reconnect = {
+		auto: false
+	};
+
+	const service = this.subject();
+
+	await waitForIdle();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+	assert.equal(service.get('lastReconnectStatus'), 404, 'status is expected');
+
+	this.goLimited();
+
+	await waitForIdle();
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.notOk(service.get('lastReconnectStatus'), 'status is not expected');
 });
 
 // never trust the API

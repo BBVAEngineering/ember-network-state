@@ -90,6 +90,14 @@ export default Service.extend(Evented, {
 	lastReconnectDuration: 0,
 
 	/**
+	 * Last reconnect status.
+	 *
+	 * @property lastReconnectStatus
+	 * @type {Number}
+	 */
+	lastReconnectStatus: 0,
+
+	/**
 	 * Init window listeners.
 	 *
 	 * @method init
@@ -269,17 +277,21 @@ export default Service.extend(Evented, {
 	async _reconnect() {
 		const { reconnect } = this.get('_config');
 		const start = performance.now();
+		let status = 0;
 
 		this.set('isReconnecting', true);
 
 		try {
-			await fetch(reconnect.path, FETCH_OPTIONS);
+			const response = await fetch(reconnect.path, FETCH_OPTIONS);
+
+			status = response.status;
 
 			this.set('_state', STATES.ONLINE);
 		} catch (e) {
 			this._handleError(e);
 		} finally {
 			this.setProperties({
+				lastReconnectStatus: status,
 				lastReconnectDuration: performance.now() - start,
 				isReconnecting: false
 			});
