@@ -268,7 +268,7 @@ export default Service.extend(Evented, {
 	 */
 	async _reconnect() {
 		const { reconnect } = this.get('_config');
-		const start = Date.now();
+		const start = performance.now();
 
 		this.set('isReconnecting', true);
 
@@ -280,7 +280,7 @@ export default Service.extend(Evented, {
 			this._handleError(e);
 		} finally {
 			this.setProperties({
-				lastReconnectDuration: Date.now() - start,
+				lastReconnectDuration: performance.now() - start,
 				isReconnecting: false
 			});
 		}
