@@ -60,6 +60,8 @@ export default Component.extend({
 
 - `lastReconnectDuration`: saves last reconnect duration.
 
+- `lastReconnectStatus`: saves last reconnect status.
+
 #### Methods
 
 - `reconnect`: you can call this method to force a reconnect request. Next delay will be multiplied as if it will reach countdown to zero.
