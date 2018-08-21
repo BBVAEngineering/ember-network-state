@@ -271,7 +271,7 @@ export default Service.extend(Evented, {
 		this.set('isReconnecting', true);
 
 		try {
-			await fetch(reconnect.path);
+			await fetch(reconnect.path, { cache: 'no-store' });
 
 			this.set('_state', STATES.ONLINE);
 		} catch (e) {
