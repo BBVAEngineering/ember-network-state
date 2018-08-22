@@ -703,6 +703,28 @@ test('it knows last reconnect status', async function(assert) {
 	assert.notOk(service.get('lastReconnectStatus'), 'status is not expected');
 });
 
+// timeout
+
+test('it abort reconnect on timeout', async function(assert) {
+	this.sandbox.server.respondImmediately = false;
+	this.sandbox.server.autoRespond = false;
+	this.config.reconnect = {
+		auto: false,
+		timeout: 10000
+	};
+
+	this.goOnline();
+
+	const service = this.subject();
+
+	await wait(forSettledWaiters);
+
+	await this.tick(10);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+});
+
+
 // never trust the API
 
 test('it goes online even when API is offline', async function(assert) {

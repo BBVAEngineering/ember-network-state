@@ -7,8 +7,6 @@ import { cancel, later, once } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, reads } from '@ember/object/computed';
 
-const FETCH_OPTIONS = { method: 'HEAD', cache: 'no-store' };
-
 export default Service.extend(Evented, {
 
 	/**
@@ -275,14 +273,13 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	async _reconnect() {
-		const { reconnect } = this.get('_config');
 		const start = performance.now();
 		let status = 0;
 
 		this.set('isReconnecting', true);
 
 		try {
-			const response = await fetch(reconnect.path, FETCH_OPTIONS);
+			const response = await this._ping();
 
 			status = response.status;
 
@@ -295,6 +292,26 @@ export default Service.extend(Evented, {
 				lastReconnectDuration: performance.now() - start,
 				isReconnecting: false
 			});
+		}
+	},
+
+	/**
+	 * Ping for connection check.
+	 *
+	 * @method _ping
+	 * @private
+	 */
+	async _ping() {
+		const { reconnect } = this.get('_config');
+		const controller = new AbortController();
+		const { signal } = controller;
+
+		const timeout = later(controller, 'abort', reconnect.timeout);
+
+		try {
+			return await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal });
+		} finally {
+			cancel(timeout);
 		}
 	},
 
