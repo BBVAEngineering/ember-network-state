@@ -273,13 +273,17 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	async _reconnect() {
+		const { reconnect } = this.get('_config');
+		const controller = new AbortController();
+		const { signal } = controller;
+		const timeout = later(controller, 'abort', reconnect.timeout);
 		const start = performance.now();
 		let status = 0;
 
 		this.set('isReconnecting', true);
 
 		try {
-			const response = await this._ping();
+			const response = await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal });
 
 			status = response.status;
 
@@ -287,31 +291,12 @@ export default Service.extend(Evented, {
 		} catch (e) {
 			this._handleError(e);
 		} finally {
+			cancel(timeout);
 			this.setProperties({
 				lastReconnectStatus: status,
 				lastReconnectDuration: performance.now() - start,
 				isReconnecting: false
 			});
-		}
-	},
-
-	/**
-	 * Ping for connection check.
-	 *
-	 * @method _ping
-	 * @private
-	 */
-	async _ping() {
-		const { reconnect } = this.get('_config');
-		const controller = new AbortController();
-		const { signal } = controller;
-
-		const timeout = later(controller, 'abort', reconnect.timeout);
-
-		try {
-			return await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal });
-		} finally {
-			cancel(timeout);
 		}
 	},
 
