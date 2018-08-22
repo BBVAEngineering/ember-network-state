@@ -89,6 +89,7 @@ module.exports = function(/* environment */) {
         path: '/favicon.ico',
         delay: 5000,
         multiplier: 1.5,
+        timeout: 30000,
         maxDelay: 60000,
         maxTimes: -1
       }
@@ -104,6 +105,7 @@ Posible values:
   - `path`: Path to request on reconnect. Default: `/favicon.ico`.
   - `delay`: Initial delay for retry a reconnection. Default: `5000`.
   - `multiplier`: Increment for next retry. Next delay will be `delay * multiplier`. Default: `1.5`.
+  - `timeout`: Reconnect request timeout.
   - `maxDelay`: Maximum delay for a reconnect. Default: `60000`.
   - `maxTimes`: Maximum times for a reconnect. When value is negative, its `Infinity`. Default: `-1`.
 
