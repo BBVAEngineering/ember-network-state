@@ -2,7 +2,7 @@
 import { moduleFor, test } from 'ember-qunit';
 import { STATES } from 'ember-network-state/constants';
 import sinon from 'sinon';
-import { getSettledState, isSettled } from '@ember/test-helpers/settled';
+import { isSettled } from '@ember/test-helpers/settled';
 import waitUntil from '@ember/test-helpers/wait-until';
 import { bind } from '@ember/runloop';
 import Ember from 'ember';
@@ -10,9 +10,7 @@ import Ember from 'ember';
 const { Test } = Ember;
 
 function forSettledWaiters() {
-	const { hasPendingWaiters } = getSettledState();
-
-	return !hasPendingWaiters;
+	return !Test.checkWaiters();
 }
 
 function wait(fn) {
@@ -83,12 +81,12 @@ function goLimited(context) {
 }
 
 function tick(context) {
-	const SECOND = 1000;
+	const TICK = 1000;
 
 	return async(time) => {
 		for (let i = 0; i < time; i++) {
 			try {
-				context.tick(SECOND);
+				context.tick(TICK);
 			} catch (e) {
 				// noop
 			}
@@ -680,6 +678,8 @@ test('it knows last reconnect duration', async function(assert) {
 });
 
 test('it knows last reconnect status', async function(assert) {
+	this.asyncFetch();
+
 	this.goOnline();
 
 	this.sandbox.server.respondWith('HEAD', '/favicon.ico', [404, {}, '']);
@@ -717,9 +717,11 @@ test('it abort reconnect on timeout', async function(assert) {
 
 	const service = this.subject();
 
-	await wait(forSettledWaiters);
+	await wait(() => Test.checkWaiters());
 
-	await this.tick(10);
+	this.sandbox.clock.tick(10000);
+
+	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 });
