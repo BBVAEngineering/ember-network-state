@@ -6,6 +6,7 @@
 [![Dependency Status](https://david-dm.org/BBVAEngineering/ember-network-state.svg)](https://david-dm.org/BBVAEngineering/ember-network-state)
 [![codecov](https://codecov.io/gh/BBVAEngineering/ember-network-state/branch/master/graph/badge.svg)](https://codecov.io/gh/BBVAEngineering/ember-network-state)
 [![Greenkeeper badge](https://badges.greenkeeper.io/BBVAEngineering/ember-network-state.svg)](https://greenkeeper.io/)
+[![Ember Observer Score](https://emberobserver.com/badges/ember-network-state.svg)](https://emberobserver.com/addons/ember-network-state)
 
 ## Information
 
