@@ -3,7 +3,7 @@ import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
 import fetch from 'fetch';
-import { cancel, later, once } from '@ember/runloop';
+import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, reads } from '@ember/object/computed';
 
@@ -237,18 +237,8 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	_changeNetworkBinding: computed(function() {
-		return this._scheduleChangeNetwork.bind(this);
+		return this._changeNetwork.bind(this);
 	}),
-
-	/**
-	 * Scheldule network change only once.
-	 *
-	 * @method _scheduleChangeNetwork
-	 * @private
-	 */
-	_scheduleChangeNetwork() {
-		once(this, '_changeNetwork', ...arguments);
-	},
 
 	/**
 	 * React to network changes.
@@ -273,6 +263,10 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	async _reconnect() {
+		if (this.get('isReconnecting')) {
+			return;
+		}
+
 		const { reconnect } = this.get('_config');
 		const controller = new AbortController();
 		const { signal } = controller;

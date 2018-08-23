@@ -365,6 +365,23 @@ test('it reconnects from limited', async function(assert) {
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 });
 
+test('it does not reconnect when is already reconnecting', async function(assert) {
+	this.goOffline();
+
+	const service = this.subject();
+
+	await waitForIdle();
+
+	this.goOnline();
+
+	service.reconnect();
+
+	await waitForIdle();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+});
+
 // timer
 
 test('it keeps reconnecting until reconnect goes ok without connection API', async function(assert) {
