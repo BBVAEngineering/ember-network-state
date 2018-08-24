@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "ember-cli-babel": "^6.6.0",
-    "ember-fetch": "^5.0.1"
+    "ember-fetch": "~5.0.1"
   },
   "config": {
     "commitizen": {
@@ -45,27 +45,19 @@
     "broccoli-asset-rev": "^3.0.0",
     "commitizen": "^2.10.1",
     "cz-conventional-changelog": "^2.1.0",
-    "ember-ajax": "^3.0.0",
     "ember-cli": "~3.3.0",
     "ember-cli-code-coverage": "1.0.0-beta.4",
     "ember-cli-dependency-checker": "^3.0.0",
     "ember-cli-eslint": "^4.2.3",
     "ember-cli-htmlbars": "^3.0.0",
-    "ember-cli-htmlbars-inline-precompile": "^1.0.0",
-    "ember-cli-inject-live-reload": "^1.4.1",
     "ember-cli-qunit": "^4.1.1",
     "ember-cli-qunit-parameterize": "^1.0.1",
-    "ember-cli-shims": "^1.2.0",
-    "ember-cli-sri": "^2.1.0",
-    "ember-cli-uglify": "^2.0.0",
     "ember-disable-prototype-extensions": "^1.1.2",
-    "ember-export-application-global": "^2.0.0",
     "ember-load-initializers": "^1.0.0",
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-resolver": "^5.0.1",
     "ember-sinon": "^2.1.0",
     "ember-source": "~3.3.0",
-    "ember-source-channel-url": "^1.0.1",
     "ember-try": "^0.2.23",
     "eslint": "^5.1.0",
     "eslint-config-bbva": "^2.0.0",
