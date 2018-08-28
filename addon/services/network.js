@@ -283,7 +283,7 @@ export default Service.extend(Evented, {
 		let status = 0;
 
 		try {
-			const response = await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal });
+			const response = await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal, headers: { 'cache-control': 'no-cache' } });
 
 			this.get('_controllers').removeObject(controller);
 

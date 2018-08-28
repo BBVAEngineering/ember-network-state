@@ -285,6 +285,24 @@ test('it tests online connection on network change', async function(assert) {
 	assert.equal(this.sandbox.server.requestCount, 2, 'requests are expected');
 });
 
+test('it tests online connection with no cache', async function(assert) {
+	this.goOnline();
+
+	const service = this.subject();
+
+	await waitForIdle();
+
+	this.goOnline();
+
+	await waitForIdle();
+
+	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+
+	this.sandbox.server.requests.forEach((request) => {
+		assert.equal(request.requestHeaders['cache-control'], 'no-cache', 'header is expected');
+	});
+});
+
 test('it supports no implementations of connection API', async function(assert) {
 	this.goOnline();
 
