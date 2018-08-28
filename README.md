@@ -90,7 +90,7 @@ module.exports = function(/* environment */) {
         path: '/favicon.ico',
         delay: 5000,
         multiplier: 1.5,
-        timeout: 30000,
+        timeout: 15000,
         maxDelay: 60000,
         maxTimes: -1
       }

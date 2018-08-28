@@ -211,7 +211,7 @@ test('it changes to online from offline', async function(assert) {
 	assert.notOk(service.get('isLimited'), 'service is not limited');
 	assert.notOk(service.get('isOffline'), 'service is not offline');
 	assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+	assert.equal(this.sandbox.server.requestCount, 2, 'requests are expected');
 });
 
 test('it changes to offline from online', async function(assert) {
@@ -365,21 +365,28 @@ test('it reconnects from limited', async function(assert) {
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 });
 
-test('it does not reconnect when is already reconnecting', async function(assert) {
-	this.goOffline();
-
+test('it aborts previous reconects when reconnecting', async function(assert) {
 	const service = this.subject();
+	let requests = 0;
 
 	await waitForIdle();
 
-	this.goOnline();
+	this.sandbox.server.respondWith((xhr) => {
+		requests++;
+
+		if (requests === 2) {
+			xhr.respond(200, {}, '');
+		}
+	});
+
+	service.reconnect();
 
 	service.reconnect();
 
 	await waitForIdle();
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
-	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+	assert.equal(this.sandbox.server.requestCount, 3, 'requests are expected');
 });
 
 // timer

@@ -5,7 +5,12 @@ import { STATES, CONFIG } from '../constants';
 import fetch from 'fetch';
 import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
-import { equal, notEmpty, reads } from '@ember/object/computed';
+import {
+	equal,
+	notEmpty,
+	reads
+} from '@ember/object/computed';
+import { A } from '@ember/array';
 
 export default Service.extend(Evented, {
 
@@ -51,7 +56,7 @@ export default Service.extend(Evented, {
 	 * @property isReconnecting
 	 * @type {Boolean}
 	 */
-	isReconnecting: false,
+	isReconnecting: notEmpty('_controllers'),
 
 	/**
 	 * Check when timer is enabled.
@@ -108,6 +113,7 @@ export default Service.extend(Evented, {
 		const addonConfig = getWithDefault(appConfig, 'network-state', {});
 		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
 
+		this.set('_controllers', A());
 		this.set('_config', { reconnect });
 
 		const changeNetworkBinding = this.get('_changeNetworkBinding');
@@ -263,35 +269,66 @@ export default Service.extend(Evented, {
 	 * @private
 	 */
 	async _reconnect() {
-		if (this.get('isReconnecting')) {
-			return;
-		}
-
 		const { reconnect } = this.get('_config');
 		const controller = new AbortController();
+
+		// Cancel all ongoing controllers.
+		this._abortControllers();
+		// Push new controller.
+		this.get('_controllers').pushObject(controller);
+
 		const { signal } = controller;
 		const timeout = later(controller, 'abort', reconnect.timeout);
 		const start = performance.now();
 		let status = 0;
 
-		this.set('isReconnecting', true);
-
 		try {
 			const response = await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal });
+
+			this.get('_controllers').removeObject(controller);
 
 			status = response.status;
 
 			this.set('_state', STATES.ONLINE);
 		} catch (e) {
-			this._handleError(e);
+			this.get('_controllers').removeObject(controller);
+
+			if (!this.get('isReconnecting')) {
+				this._handleError();
+			}
 		} finally {
 			cancel(timeout);
-			this.setProperties({
-				lastReconnectStatus: status,
-				lastReconnectDuration: performance.now() - start,
-				isReconnecting: false
-			});
+
+			if (!this.get('isReconnecting')) {
+				this.setProperties({
+					lastReconnectStatus: status,
+					lastReconnectDuration: performance.now() - start
+				});
+			}
 		}
+	},
+
+	/**
+	 * List of fetch abort controllers.
+	 *
+	 * @property _controllers
+	 * @type {Array}
+	 */
+	_controllers: null,
+
+	/**
+	 * Abort all controllers.
+	 *
+	 * @method _abortControllers
+	 */
+	_abortControllers() {
+		const controllers = this.get('_controllers');
+
+		controllers.forEach((controller) => {
+			controller.abort();
+		});
+
+		controllers.clear();
 	},
 
 	/**
