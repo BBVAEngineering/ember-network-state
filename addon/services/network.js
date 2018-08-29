@@ -2,7 +2,7 @@ import { computed, getWithDefault, observer } from '@ember/object';
 import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
-import fetch from 'fetch';
+import fetch, { AbortController } from 'fetch';
 import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import {

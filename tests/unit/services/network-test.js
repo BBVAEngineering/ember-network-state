@@ -793,7 +793,7 @@ test('it abort reconnect on timeout', async function(assert) {
 
 	this.sandbox.clock.tick(10000);
 
-	await waitForIdle();
+	await this.tick(1);
 
 	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 });
