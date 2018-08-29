@@ -676,6 +676,36 @@ test('it never returns negative remaining', async function(assert) {
 	this.sandbox.clock.tick(5);
 });
 
+test('it resets reconnects on network change', async function(assert) {
+	this.goLimited();
+
+	this.config.reconnect = {
+		auto: true,
+		delay: 5000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: 2
+	};
+
+	const service = this.subject();
+
+	await wait(forSettledWaiters);
+
+	await this.tick(2);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 1, 'requests are expected');
+
+	this.goLimited();
+
+	await wait(forSettledWaiters);
+
+	await this.tick(5);
+
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+	assert.equal(this.sandbox.server.requestCount, 3, 'requests are expected');
+});
+
 // config
 
 test('it allows path config', async function(assert) {
