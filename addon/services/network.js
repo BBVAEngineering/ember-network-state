@@ -277,13 +277,17 @@ export default Service.extend(Evented, {
 		// Push new controller.
 		this.get('_controllers').pushObject(controller);
 
-		const { signal } = controller;
 		const timeout = later(controller, 'abort', reconnect.timeout);
 		const start = performance.now();
 		let status = 0;
 
 		try {
-			const response = await fetch(reconnect.path, { method: 'HEAD', cache: 'no-store', signal, headers: { 'cache-control': 'no-cache' } });
+			const response = await fetch(reconnect.path, {
+				method: 'HEAD',
+				cache: 'no-store',
+				signal: controller.signal,
+				headers: { 'cache-control': 'no-cache' }
+			});
 
 			this.get('_controllers').removeObject(controller);
 
@@ -298,6 +302,10 @@ export default Service.extend(Evented, {
 			}
 		} finally {
 			cancel(timeout);
+
+			if (this.isDestroyed) {
+				return;
+			}
 
 			if (!this.get('isReconnecting')) {
 				this.setProperties({
