@@ -679,6 +679,9 @@ test('it never returns negative remaining', async function(assert) {
 test('it resets reconnects on network change', async function(assert) {
 	this.goLimited();
 
+	this.sandbox.server.respondImmediately = false;
+	this.sandbox.server.autoRespond = true;
+	this.sandbox.server.autoRespondAfter = 10;
 	this.config.reconnect = {
 		auto: true,
 		delay: 5000,
@@ -689,6 +692,8 @@ test('it resets reconnects on network change', async function(assert) {
 
 	const service = this.subject();
 
+	this.sandbox.clock.tick(10);
+
 	await wait(forSettledWaiters);
 
 	await this.tick(2);
@@ -698,7 +703,11 @@ test('it resets reconnects on network change', async function(assert) {
 
 	this.goLimited();
 
+	this.sandbox.clock.tick(10);
+
 	await wait(forSettledWaiters);
+
+	this.sandbox.clock.tick(10);
 
 	await this.tick(5);
 
