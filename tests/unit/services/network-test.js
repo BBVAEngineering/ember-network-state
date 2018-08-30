@@ -4,7 +4,7 @@ import { STATES } from 'ember-network-state/constants';
 import sinon from 'sinon';
 import { isSettled } from '@ember/test-helpers/settled';
 import waitUntil from '@ember/test-helpers/wait-until';
-import { bind } from '@ember/runloop';
+import { bind, run } from '@ember/runloop';
 import Ember from 'ember';
 
 const { Test } = Ember;
@@ -777,7 +777,7 @@ test('it knows last reconnect status', async function(assert) {
 
 // timeout
 
-test('it abort reconnect on timeout', async function(assert) {
+test('it aborts reconnect on timeout', async function(assert) {
 	this.sandbox.server.respondImmediately = false;
 	this.sandbox.server.autoRespond = false;
 	this.config.reconnect = {
@@ -816,3 +816,71 @@ test('it goes online even when API is offline', async function(assert) {
 
 	assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 });
+
+// service destroy
+
+test('it does not throw an error when destroyed on reconnect', async function(assert) {
+	assert.expect(0);
+
+	this.sandbox.server.respondImmediately = false;
+	this.sandbox.server.autoRespond = false;
+
+	this.goOnline();
+
+	const service = this.subject();
+
+	await wait(() => Test.checkWaiters());
+
+	run(service, 'destroy');
+
+	this.sandbox.server.respond();
+});
+
+test('it does not throw an error when destroyed on timeout', async function(assert) {
+	assert.expect(0);
+
+	this.sandbox.server.respondImmediately = false;
+	this.sandbox.server.autoRespond = false;
+	this.config.reconnect = {
+		auto: false,
+		timeout: 10000
+	};
+
+	this.goOnline();
+
+	const service = this.subject();
+
+	await wait(() => Test.checkWaiters());
+
+	run(service, 'destroy');
+
+	this.sandbox.clock.tick(10000);
+
+	await this.tick(1);
+
+	this.sandbox.server.respond();
+});
+
+test('it does not throw an error when destroyed on delayed reconnect', async function(assert) {
+	this.goLimited();
+
+	this.config.reconnect = {
+		auto: true,
+		delay: 5000,
+		multiplier: 2,
+		maxDelay: 60000,
+		maxTimes: 2
+	};
+
+	const service = this.subject();
+
+	await wait(forSettledWaiters);
+
+	assert.ok(service.get('hasTimer'), 'timer is enabled');
+	assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+
+	run(service, 'destroy');
+
+	await this.tick(5);
+});
+
