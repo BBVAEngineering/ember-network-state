@@ -25,7 +25,7 @@
     "check-coverage": "istanbul check-coverage coverage/coverage-final.json --statements 100 --functions 100 --branches 100 --lines 100"
   },
   "dependencies": {
-    "ember-cli-babel": "^7.1.0",
+    "ember-cli-babel": "^6.17.0",
     "ember-fetch": "~5.0.1"
   },
   "config": {
@@ -48,7 +48,7 @@
     "commitizen": "^2.10.1",
     "cz-conventional-changelog": "^2.1.0",
     "ember-cli": "~3.4.2",
-    "ember-cli-code-coverage": "1.0.0-beta.4",
+    "ember-cli-code-coverage": "1.0.0-beta.5",
     "ember-cli-dependency-checker": "^3.0.0",
     "ember-cli-eslint": "^4.2.3",
     "ember-cli-htmlbars": "^3.0.0",
