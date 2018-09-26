@@ -1,61 +1,45 @@
 /* eslint-env node */
 'use strict';
 
-module.exports = {
-	scenarios: [
-		{
-			name: 'ember-release',
-			bower: {
-				dependencies: {
-					ember: 'components/ember#release'
-				},
-				resolutions: {
-					ember: 'release'
+const getChannelURL = require('ember-source-channel-url');
+
+module.exports = function() {
+	return Promise.all([
+		getChannelURL('release'),
+		getChannelURL('beta'),
+		getChannelURL('canary')
+	]).then((urls) => ({
+		scenarios: [
+			{
+				name: 'ember-release',
+				npm: {
+					devDependencies: {
+						'ember-source': urls[0]
+					}
 				}
 			},
-			npm: {
-				devDependencies: {
-					'ember-source': null
-				}
-			}
-		},
-		{
-			name: 'ember-beta',
-			bower: {
-				dependencies: {
-					ember: 'components/ember#beta'
-				},
-				resolutions: {
-					ember: 'beta'
+			{
+				name: 'ember-beta',
+				npm: {
+					devDependencies: {
+						'ember-source': urls[1]
+					}
 				}
 			},
-			npm: {
-				devDependencies: {
-					'ember-source': null
-				}
-			}
-		},
-		{
-			name: 'ember-canary',
-			bower: {
-				dependencies: {
-					ember: 'components/ember#canary'
-				},
-				resolutions: {
-					ember: 'canary'
+			{
+				name: 'ember-canary',
+				npm: {
+					devDependencies: {
+						'ember-source': urls[2]
+					}
 				}
 			},
-			npm: {
-				devDependencies: {
-					'ember-source': null
+			{
+				name: 'ember-default',
+				npm: {
+					devDependencies: {}
 				}
 			}
-		},
-		{
-			name: 'ember-default',
-			npm: {
-				devDependencies: {}
-			}
-		}
-	]
+		]
+	}));
 };
