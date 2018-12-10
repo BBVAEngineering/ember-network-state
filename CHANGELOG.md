@@ -1,3 +1,10 @@
+## [2.1.6](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.5...v2.1.6) (2018-12-10)
+
+
+### Bug Fixes
+
+* **package:** update ember-fetch to version 6.3.0 ([c122e89](https://github.com/BBVAEngineering/ember-network-state/commit/c122e89))
+
 ## [2.1.5](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.4...v2.1.5) (2018-11-19)
 
 
