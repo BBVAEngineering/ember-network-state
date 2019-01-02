@@ -192,7 +192,7 @@ export default Service.extend(Evented, {
 	 * @method _onChange
 	 * @private
 	 */
-	_onChange: observer('_state', function() {
+	_onChange: observer('_state', function() { // eslint-disable-line ember/no-observers
 		const state = this.get('_state');
 
 		this._clearTimer();
