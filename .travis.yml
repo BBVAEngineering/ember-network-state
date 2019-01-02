@@ -1,8 +1,8 @@
 ---
 language: node_js
+node_js: stable
 sudo: false
 dist: trusty
-node_js: 'stable'
 
 addons:
   chrome: stable
@@ -12,62 +12,64 @@ cache:
     - $HOME/.npm
 
 env:
-  - EMBER_TRY_SCENARIO=ember-release
-  - EMBER_TRY_SCENARIO=ember-beta
-  - EMBER_TRY_SCENARIO=ember-canary
-  - EMBER_TRY_SCENARIO=ember-default
+  global:
+    - JOBS=1
 
-matrix:
-  fast_finish: true
+jobs:
+  fail_fast: true
   allow_failures:
     - env: EMBER_TRY_SCENARIO=ember-canary
 
-before_install:
-  # Signing commits.
-  - openssl aes-256-cbc -K $encrypted_d90c5f4a0e68_key -iv $encrypted_d90c5f4a0e68_iv -in git_gpg_keys.asc.enc -out /tmp/git_gpg_keys.asc -d
-  - chmod 600 /tmp/git_gpg_keys.asc
-  - gpg --batch --yes --import /tmp/git_gpg_keys.asc
-  - echo '/usr/bin/gpg2 --passphrase ${GPG_PASSPHRASE} --batch --no-tty "$@"' > /tmp/gpg-with-passphrase && chmod +x /tmp/gpg-with-passphrase
-  - git config gpg.program "/tmp/gpg-with-passphrase"
-  - git config commit.gpgsign true
-  - git config --global user.signingkey ${GPG_KEY_ID}
-  # Configuration.
-  - npm config set spin false
-  - npm install -g npm@^6
-  - npm install -g codecov
-  - npm install -g greenkeeper-lockfile@1
-  - npm install -g @commitlint/travis-cli
-  - npm --version
-
-install:
-  - if [[ $TRAVIS_BRANCH =~ greenkeeper || $TRAVIS_PULL_REQUEST_BRANCH =~ greenkeeper ]]; then npm install; else npm ci; fi
-
-before_script:
-  - greenkeeper-lockfile-update
-
-script:
-  - commitlint-travis
-  - npm run lint:js
-  - COVERAGE=true node_modules/.bin/ember try:one $EMBER_TRY_SCENARIO --skip-cleanup
-
-after_script:
-  - greenkeeper-lockfile-upload
-
-after_success:
-  - codecov --file=coverage/lcov.info
-
-stages:
-  - test
-  - name: release
-    if: branch = master
-
-jobs:
   include:
-    - stage: release
+    - stage: "Tests"
+      before_install:
+        - npm config set spin false
+        - npm install -g npm@6
+        - npm install -g codecov
+        - npm install -g greenkeeper-lockfile@1
+        - npm install -g @commitlint/travis-cli
+        - npm --version
+      install:
+        - if [[ $TRAVIS_BRANCH =~ greenkeeper || $TRAVIS_PULL_REQUEST_BRANCH =~ greenkeeper ]]; then npm install; else npm ci; fi
+      before_script:
+        - greenkeeper-lockfile-update
+      script:
+        - commitlint-travis
+        - npm run lint:js
+        - npm run lint:hbs
+        - npm test
+      after_script:
+        - greenkeeper-lockfile-upload
+      after_success:
+        - codecov --file=coverage/lcov.info
+
+    - stage: "Regression Tests"
+      env: EMBER_TRY_SCENARIO=ember-lts-2.16
+    - env: EMBER_TRY_SCENARIO=ember-lts-2.18
+    - env: EMBER_TRY_SCENARIO=ember-release
+    - env: EMBER_TRY_SCENARIO=ember-beta
+    - env: EMBER_TRY_SCENARIO=ember-canary
+    - env: EMBER_TRY_SCENARIO=ember-default-with-jquery
+
+    - stage: "Release"
       script: skip
-      env: []
       deploy:
         provider: script
         skip_cleanup: true
         script:
           - npx semantic-release
+
+before_install:
+  - npm config set spin false
+  - npm install -g npm@6
+  - npm --version
+
+script:
+  - node_modules/.bin/ember try:one $EMBER_TRY_SCENARIO
+
+stages:
+  - "Tests"
+  - "Regression Tests"
+  - name: "Release"
+    if: branch = master
+
