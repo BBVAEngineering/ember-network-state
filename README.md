@@ -7,6 +7,7 @@
 [![codecov](https://codecov.io/gh/BBVAEngineering/ember-network-state/branch/master/graph/badge.svg)](https://codecov.io/gh/BBVAEngineering/ember-network-state)
 [![Greenkeeper badge](https://badges.greenkeeper.io/BBVAEngineering/ember-network-state.svg)](https://greenkeeper.io/)
 [![Ember Observer Score](https://emberobserver.com/badges/ember-network-state.svg)](https://emberobserver.com/addons/ember-network-state)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FBBVAEngineering%2Fember-network-state.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2FBBVAEngineering%2Fember-network-state?ref=badge_shield)
 
 ## Information
 
@@ -125,3 +126,5 @@ See the list of [contributors](https://github.com/BBVAEngineering/ember-network-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2FBBVAEngineering%2Fember-network-state.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2FBBVAEngineering%2Fember-network-state?ref=badge_large)
