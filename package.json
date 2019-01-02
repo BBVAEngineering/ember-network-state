@@ -39,6 +39,7 @@
   "devDependencies": {
     "@commitlint/cli": "^7.2.1",
     "@commitlint/config-conventional": "^7.1.2",
+    "@ember/optional-features": "^0.7.0",
     "@semantic-release/changelog": "^3.0.2",
     "@semantic-release/git": "^7.0.7",
     "broccoli-asset-rev": "^3.0.0",
@@ -47,7 +48,6 @@
     "ember-cli": "~3.6.0",
     "ember-cli-code-coverage": "^1.0.0-beta.7",
     "ember-cli-dependency-checker": "^3.0.0",
-    "ember-cli-eslint": "^5.0.0",
     "ember-cli-htmlbars": "^3.0.0",
     "ember-cli-qunit": "^4.1.1",
     "ember-cli-qunit-parameterize": "^1.0.1",

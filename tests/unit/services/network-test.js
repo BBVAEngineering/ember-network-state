@@ -97,8 +97,9 @@ function tick(context) {
 }
 
 moduleFor('service:network', 'Unit | Services | network', {
+	integration: true,
 	beforeEach() {
-		this.sandbox = sinon.sandbox.create({
+		this.sandbox = sinon.createSandbox({
 			useFakeTimers: true,
 			useFakeServer: true
 		});
@@ -551,8 +552,6 @@ test('it sends change action on online event', async function(assert) {
 
 	service.on('change', (newState) => {
 		assert.equal(newState, STATES.ONLINE, 'event for change');
-
-		service.off('change');
 	});
 
 	this.goOnline();
@@ -573,8 +572,6 @@ test('it sends change action on limited event', async function(assert) {
 
 	service.on('change', (newState) => {
 		assert.equal(newState, STATES.LIMITED, 'event for change');
-
-		service.off('change');
 	});
 
 	this.goLimited();
@@ -593,8 +590,6 @@ test('it sends change action on offline event', async function(assert) {
 
 	service.on('change', (newState) => {
 		assert.equal(newState, STATES.OFFLINE, 'event for change');
-
-		service.off('change');
 	});
 
 	this.goOffline();
