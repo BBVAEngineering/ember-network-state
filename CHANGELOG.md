@@ -1,3 +1,10 @@
+## [2.1.8](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.7...v2.1.8) (2019-02-20)
+
+
+### Bug Fixes
+
+* **package:** update ember-cli-babel to version 7.4.3 ([930a720](https://github.com/BBVAEngineering/ember-network-state/commit/930a720)), closes [#52](https://github.com/BBVAEngineering/ember-network-state/issues/52)
+
 ## [2.1.7](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.6...v2.1.7) (2018-12-20)
 
 
