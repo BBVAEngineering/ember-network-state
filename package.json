@@ -1,6 +1,6 @@
 {
   "name": "ember-network-state",
-  "version": "2.1.8",
+  "version": "2.1.9",
   "description": "Check and react on network state of your progressive web app",
   "keywords": [
     "ember-addon"
