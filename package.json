@@ -54,7 +54,7 @@
     "ember-cli-qunit-parameterize": "^1.0.1",
     "ember-cli-template-lint": "^1.0.0-beta.2",
     "ember-disable-prototype-extensions": "^1.1.2",
-    "ember-load-initializers": "^2.0.0",
+    "ember-load-initializers": "2.0.0",
     "ember-maybe-import-regenerator": "^0.1.6",
     "ember-resolver": "^5.1.1",
     "ember-sinon": "^4.0.0",
