@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "ember-cli-babel": "^7.4.3",
-    "ember-fetch": "~6.5.0"
+    "ember-fetch": "~6.7.2"
   },
   "config": {
     "commitizen": {
