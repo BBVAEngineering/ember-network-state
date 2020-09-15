@@ -1,4 +1,47 @@
+<<<<<<< HEAD
 /bower_components
+||||||| parent of b5b0216... v3.7.1...v3.21.2
+# compiled output
+/dist/
+/tmp/
+
+# dependencies
+/bower_components/
+
+# misc
+/.bowerrc
+/.editorconfig
+/.ember-cli
+/.env*
+/.eslintignore
+/.eslintrc.js
+/.gitignore
+/.template-lintrc.js
+/.travis.yml
+/.watchmanconfig
+/bower.json
+=======
+# compiled output
+/dist/
+/tmp/
+
+# dependencies
+/bower_components/
+
+# misc
+/.bowerrc
+/.editorconfig
+/.ember-cli
+/.env*
+/.eslintignore
+/.eslintrc.js
+/.git/
+/.gitignore
+/.template-lintrc.js
+/.travis.yml
+/.watchmanconfig
+/bower.json
+>>>>>>> b5b0216... v3.7.1...v3.21.2
 /config/ember-try.js
 /dist
 /tests

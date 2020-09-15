@@ -123,6 +123,10 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 See the list of [contributors](https://github.com/BBVAEngineering/ember-network-state/graphs/contributors) who participated in this project.
 
+## Contributing
+
+See the [Contributing](CONTRIBUTING.md) guide for details.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
