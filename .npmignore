@@ -1,26 +1,3 @@
-<<<<<<< HEAD
-/bower_components
-||||||| parent of b5b0216... v3.7.1...v3.21.2
-# compiled output
-/dist/
-/tmp/
-
-# dependencies
-/bower_components/
-
-# misc
-/.bowerrc
-/.editorconfig
-/.ember-cli
-/.env*
-/.eslintignore
-/.eslintrc.js
-/.gitignore
-/.template-lintrc.js
-/.travis.yml
-/.watchmanconfig
-/bower.json
-=======
 # compiled output
 /dist/
 /tmp/
@@ -38,22 +15,24 @@
 /.git/
 /.gitignore
 /.template-lintrc.js
+/.commitlintrc.js
+/.huskyrc.js
+/.nycrc.json
+/.releaserc
+/greenkeeper.json
+/jsconfig.json
 /.travis.yml
 /.watchmanconfig
 /bower.json
->>>>>>> b5b0216... v3.7.1...v3.21.2
 /config/ember-try.js
-/dist
-/tests
-/tmp
-**/.gitkeep
-.bowerrc
-.editorconfig
-.ember-cli
-.gitignore
-.eslintrc.js
-.watchmanconfig
-.travis.yml
-bower.json
-ember-cli-build.js
-testem.js
+/CONTRIBUTING.md
+/ember-cli-build.js
+/testem.js
+/tests/
+/yarn.lock
+.gitkeep
+
+# ember-try
+/.node_modules.ember-try/
+/bower.json.ember-try
+/package.json.ember-try
