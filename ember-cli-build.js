@@ -7,6 +7,9 @@ module.exports = function(defaults) {
 	const app = new EmberAddon(defaults, {
 		'ember-cli-babel': {
 			includePolyfill: true
+		},
+		'ember-fetch': {
+			preferNative: true
 		}
 	});
 

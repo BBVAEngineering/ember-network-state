@@ -21,7 +21,6 @@
     "start": "ember server",
     "test": "npm-run-all lint:* test:*",
     "test:ember": "COVERAGE=true ember test",
-    "test:ember-compatibility": "ember try:each",
     "posttest": "npm run report-coverage && npm run check-coverage && npm run validate-coverage",
     "lint:hbs": "ember-template-lint .",
     "report-coverage": "istanbul report --include=coverage/coverage-final.json text",
@@ -36,6 +35,9 @@
     "ember-cli-htmlbars": "^5.3.1",
     "ember-fetch": "^8.0.2"
   },
+  "resolutions": {
+    "whatwg-fetch": "3.3.1"
+  },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
@@ -47,6 +49,7 @@
     "@ember/optional-features": "^2.0.0",
     "@glimmer/component": "^1.0.1",
     "@glimmer/tracking": "^1.0.1",
+    "@pollyjs/ember": "^5.0.0",
     "@semantic-release/changelog": "^5.0.1",
     "@semantic-release/git": "^9.0.0",
     "babel-eslint": "^10.1.0",
