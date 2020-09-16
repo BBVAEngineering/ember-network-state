@@ -5,73 +5,25 @@ import { STATES, CONFIG } from '../constants';
 import fetch, { AbortController } from 'fetch';
 import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
-import {
-	equal,
-	notEmpty,
-	reads
-} from '@ember/object/computed';
+import { equal, notEmpty, readOnly } from '@ember/object/computed';
 import { A } from '@ember/array';
 
-export default Service.extend(Evented, {
+export default class NetworkService extends Service.extend(Evented) {
+	lastReconnectDuration = 0;
+	lastReconnectStatus = 0;
 
-	/**
-	 * State property. Posible values:
-	 *
-	 *  * ONLINE
-	 *  * OFFLINE
-	 *  * LIMITED
-	 *
-	 * @property state
-	 * @type {String}
-	 */
-	state: reads('_state').readOnly(),
+	_timer = null;
+	_times = 0;
+	_state = null;
+	_controllers = null;
 
-	/**
-	 * Check when network is online.
-	 *
-	 * @property isOnline
-	 * @type {Boolean}
-	 */
-	isOnline: equal('_state', STATES.ONLINE),
+	@readOnly('_state') state;
+	@equal('_state', STATES.ONLINE) isOnline;
+	@equal('_state', STATES.OFFLINE) isOffline;
+	@equal('_state', STATES.LIMITED) isLimited;
+	@notEmpty('_controllers') isReconnecting;
+	@notEmpty('_timer') hasTimer;
 
-	/**
-	 * Check when network is offline.
-	 *
-	 * @property isOffline
-	 * @type {Boolean}
-	 */
-	isOffline: equal('_state', STATES.OFFLINE),
-
-	/**
-	 * Check when network is limited.
-	 *
-	 * @property isLimited
-	 * @type {Boolean}
-	 */
-	isLimited: equal('_state', STATES.LIMITED),
-
-	/**
-	 * Check when network is reconnecting.
-	 *
-	 * @property isReconnecting
-	 * @type {Boolean}
-	 */
-	isReconnecting: notEmpty('_controllers'),
-
-	/**
-	 * Check when timer is enabled.
-	 *
-	 * @property hasTimer
-	 * @type {Boolean}
-	 */
-	hasTimer: notEmpty('_timer'),
-
-	/**
-	 * Remaining time for next reconnect.
-	 *
-	 * @property remaining
-	 * @type {Number}
-	 */
 	get remaining() {
 		const timestamp = this._timestamp;
 
@@ -82,31 +34,25 @@ export default Service.extend(Evented, {
 		const delta = timestamp - Date.now();
 
 		return delta > 0 ? delta : 0;
-	},
+	}
 
-	/**
-	 * Last reconnect duration.
-	 *
-	 * @property lastReconnectDuration
-	 * @type {Number}
-	 */
-	lastReconnectDuration: 0,
+	reconnect() {
+		this._clearTimer();
+		this._reconnect();
+	}
 
-	/**
-	 * Last reconnect status.
-	 *
-	 * @property lastReconnectStatus
-	 * @type {Number}
-	 */
-	lastReconnectStatus: 0,
+	setState(state) {
+		if (state !== this._state) {
+			this._clearTimer();
 
-	/**
-	 * Init window listeners.
-	 *
-	 * @method init
-	 */
+			this.set('_state', state);
+
+			this.trigger('change', state);
+		}
+	}
+
 	init() {
-		this._super(...arguments);
+		super.init(...arguments);
 
 		const connection = this._connection;
 		const appConfig = getOwner(this).resolveRegistration('config:environment');
@@ -132,25 +78,10 @@ export default Service.extend(Evented, {
 		if (onLine) {
 			this.reconnect();
 		}
-	},
+	}
 
-	/**
-	 * Force reconnection.
-	 *
-	 * @method reconnect
-	 */
-	reconnect() {
-		this._clearTimer();
-		this._reconnect();
-	},
-
-	/**
-	 * Deinit window listeners.
-	 *
-	 * @method willDestroy
-	 */
 	willDestroy() {
-		this._super(...arguments);
+		super.willDestroy(...arguments);
 
 		const connection = this._connection;
 		const changeNetworkBinding = this._changeNetworkBinding;
@@ -161,52 +92,12 @@ export default Service.extend(Evented, {
 		if (connection) {
 			connection.removeEventListener('change', changeNetworkBinding);
 		}
-	},
+	}
 
-	/**
-	 * Access to connection API.
-	 *
-	 * @property _connection
-	 * @type {Object}
-	 */
 	get _connection() {
 		return window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection;
-	},
+	}
 
-	/**
-	 * State property. Posible values:
-	 *
-	 *  * ONLINE
-	 *  * OFFLINE
-	 *  * LIMITED
-	 *
-	 * @property _state
-	 * @type {String}
-	 * @private
-	 */
-	_state: null,
-
-	/**
-	 * Handles network change.
-	 *
-	 * @method setState
-	 * @private
-	 */
-	setState(state) {
-		if (state !== this._state) {
-			this._clearTimer();
-
-			this.set('_state', state);
-
-			this.trigger('change', state);
-		}
-	},
-
-	/**
-	 * Clear timer for reconnect.
-	 *
-	 * @method _clearTimer
-	 */
 	_clearTimer() {
 		const timer = this._timer;
 
@@ -218,41 +109,13 @@ export default Service.extend(Evented, {
 		this.set('_nextDelay');
 		this.set('_times', 0);
 		this.set('_timestamp');
-	},
+	}
 
-	/**
-	 * Saved timer.
-	 *
-	 * @property _timer
-	 * @type {Number}
-	 */
-	_timer: null,
-
-	/**
-	 * Retry times.
-	 *
-	 * @property _times
-	 * @type {Number}
-	 */
-	_times: 0,
-
-	/**
-	 * Change network binding.
-	 *
-	 * @property changeNetworkBinding
-	 * @type Function
-	 * @private
-	 */
-	_changeNetworkBinding: computed('_changeNetwork', function() {
+	@computed('_changeNetwork')
+	get _changeNetworkBinding() {
 		return this._changeNetwork.bind(this);
-	}),
+	}
 
-	/**
-	 * React to network changes.
-	 *
-	 * @method _changeNetwork
-	 * @private
-	 */
 	_changeNetwork() {
 		const onLine = window.navigator.onLine;
 
@@ -261,14 +124,8 @@ export default Service.extend(Evented, {
 		} else {
 			this.reconnect();
 		}
-	},
+	}
 
-	/**
-	 * Check connection.
-	 *
-	 * @method _reconnect
-	 * @private
-	 */
 	async _reconnect() {
 		const { reconnect } = this._config;
 		const controller = new AbortController();
@@ -313,21 +170,8 @@ export default Service.extend(Evented, {
 				});
 			}
 		}
-	},
+	}
 
-	/**
-	 * List of fetch abort controllers.
-	 *
-	 * @property _controllers
-	 * @type {Array}
-	 */
-	_controllers: null,
-
-	/**
-	 * Abort all controllers.
-	 *
-	 * @method _abortControllers
-	 */
 	_abortControllers() {
 		const controllers = this._controllers;
 
@@ -336,15 +180,8 @@ export default Service.extend(Evented, {
 		});
 
 		controllers.clear();
-	},
+	}
 
-	/**
-	 * Handle error from fetch.
-	 *
-	 * @method _handleError
-	 * @param {Error} e
-	 * @private
-	 */
 	_handleError() {
 		const { reconnect } = this._config;
 		const onLine = window.navigator.onLine;
@@ -359,14 +196,8 @@ export default Service.extend(Evented, {
 		} else {
 			this.setState(STATES.OFFLINE);
 		}
-	},
+	}
 
-	/**
-	 * Schedule next reconnect.
-	 *
-	 * @method _delayReconnect
-	 * @private
-	 */
 	_delayReconnect() {
 		const { reconnect } = this._config;
 		const delay = (this._nextDelay === undefined ? reconnect.delay : this._nextDelay);
@@ -392,5 +223,4 @@ export default Service.extend(Evented, {
 			_timer: timer
 		});
 	}
-
-});
+}
