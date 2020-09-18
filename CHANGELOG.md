@@ -1,3 +1,15 @@
+# [2.2.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.9...v2.2.0) (2020-09-18)
+
+
+### Bug Fixes
+
+* remove ember deprecations ([6cf738c](https://github.com/BBVAEngineering/ember-network-state/commit/6cf738caccdc6b6dbc81c5715832359ccf4f2d0e)), closes [#118](https://github.com/BBVAEngineering/ember-network-state/issues/118)
+
+
+### Features
+
+* upgrade dependencies to latest ([e581c74](https://github.com/BBVAEngineering/ember-network-state/commit/e581c74b85eaf0a0273213e72a63e6d2de63c0e6))
+
 ## [2.1.9](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.8...v2.1.9) (2019-03-13)
 
 
