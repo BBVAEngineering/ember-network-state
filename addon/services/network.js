@@ -119,6 +119,11 @@ export default class NetworkService extends Service.extend(Evented) {
 	_changeNetwork() {
 		const onLine = window.navigator.onLine;
 
+		/* istanbul ignore else */
+		if (this._connection) {
+			this.trigger('connection-change', this._connection);
+		}
+
 		if (!onLine) {
 			this.setState(STATES.OFFLINE);
 		} else {
