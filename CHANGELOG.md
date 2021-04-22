@@ -1,3 +1,10 @@
+# [2.3.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.2.0...v2.3.0) (2021-04-22)
+
+
+### Features
+
+* add connection-change event ([6c55104](https://github.com/BBVAEngineering/ember-network-state/commit/6c55104a8ae5df1d2fab7b9234b2e1c08fcb12e7))
+
 # [2.2.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.1.9...v2.2.0) (2020-09-18)
 
 
