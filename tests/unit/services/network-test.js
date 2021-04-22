@@ -165,6 +165,13 @@ module('Unit | Services | network', (hooks) => {
 		this.owner.lookup('service:network');
 	});
 
+	test('it has initial values', function(assert) {
+		const service = this.owner.lookup('service:network');
+
+		assert.equal(service.lastReconnectDuration, 0);
+		assert.equal(service.lastReconnectStatus, 0);
+	});
+
 	test('it is online', async function(assert) {
 		this.goOnline();
 
