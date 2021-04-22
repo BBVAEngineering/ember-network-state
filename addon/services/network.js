@@ -1,4 +1,4 @@
-import { computed } from '@ember/object';
+import { action } from '@ember/object';
 import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
@@ -7,15 +7,19 @@ import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, readOnly } from '@ember/object/computed';
 import { A } from '@ember/array';
+import { tracked } from '@glimmer/tracking';
 
 export default class NetworkService extends Service.extend(Evented) {
-	lastReconnectDuration = 0;
-	lastReconnectStatus = 0;
+	@tracked lastReconnectDuration = 0;
+	@tracked lastReconnectStatus = 0;
 
-	_timer = null;
-	_times = 0;
-	_state = null;
-	_controllers = null;
+	@tracked _timer;
+	@tracked _times;
+	@tracked _timestamp;
+	@tracked _state;
+	@tracked _controllers;
+	@tracked _config;
+	@tracked _nextDelay;
 
 	@readOnly('_state') state;
 	@equal('_state', STATES.ONLINE) isOnline;
@@ -45,7 +49,7 @@ export default class NetworkService extends Service.extend(Evented) {
 		if (state !== this._state) {
 			this._clearTimer();
 
-			this.set('_state', state);
+			this._state = state;
 
 			this.trigger('change', state);
 		}
@@ -54,21 +58,19 @@ export default class NetworkService extends Service.extend(Evented) {
 	init() {
 		super.init(...arguments);
 
-		const connection = this._connection;
 		const appConfig = getOwner(this).resolveRegistration('config:environment');
 		const addonConfig = appConfig['network-state'] || {};
 		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
 
-		this.set('_controllers', A());
-		this.set('_config', { reconnect });
+		this._times = 0;
+		this._controllers = A();
+		this._config = { reconnect };
 
-		const changeNetworkBinding = this._changeNetworkBinding;
-
-		if (connection) {
-			connection.addEventListener('change', changeNetworkBinding);
+		if (this._connection) {
+			this._connection.addEventListener('change', this._changeNetwork);
 		} else {
-			window.addEventListener('online', changeNetworkBinding);
-			window.addEventListener('offline', changeNetworkBinding);
+			window.addEventListener('online', this._changeNetwork);
+			window.addEventListener('offline', this._changeNetwork);
 		}
 
 		const onLine = window.navigator.onLine;
@@ -83,15 +85,12 @@ export default class NetworkService extends Service.extend(Evented) {
 	willDestroy() {
 		super.willDestroy(...arguments);
 
-		const connection = this._connection;
-		const changeNetworkBinding = this._changeNetworkBinding;
-
-		window.removeEventListener('online', changeNetworkBinding);
-		window.removeEventListener('offline', changeNetworkBinding);
-
-		if (connection) {
-			connection.removeEventListener('change', changeNetworkBinding);
+		if (this._connection) {
+			this._connection.removeEventListener('change', this._changeNetwork);
 		}
+
+		window.removeEventListener('online', this._changeNetwork);
+		window.removeEventListener('offline', this._changeNetwork);
 	}
 
 	get _connection() {
@@ -103,21 +102,22 @@ export default class NetworkService extends Service.extend(Evented) {
 
 		if (timer) {
 			cancel(timer);
-			this.set('_timer');
+			this._timer = undefined;
 		}
 
-		this.set('_nextDelay');
-		this.set('_times', 0);
-		this.set('_timestamp');
+		this._nextDelay = undefined;
+		this._times = 0;
+		this._timestamp = undefined;
 	}
 
-	@computed('_changeNetwork')
-	get _changeNetworkBinding() {
-		return this._changeNetwork.bind(this);
-	}
-
+	@action
 	_changeNetwork() {
 		const onLine = window.navigator.onLine;
+
+		/* istanbul ignore else */
+		if (this._connection) {
+			this.trigger('connection-change', this._connection);
+		}
 
 		if (!onLine) {
 			this.setState(STATES.OFFLINE);
@@ -164,22 +164,20 @@ export default class NetworkService extends Service.extend(Evented) {
 			cancel(timeout);
 
 			if (!this.isDestroyed && !this.isReconnecting) {
-				this.setProperties({
-					lastReconnectStatus: status,
-					lastReconnectDuration: performance.now() - start
-				});
+				this.lastReconnectStatus = status;
+				this.lastReconnectDuration = performance.now() - start;
 			}
 		}
 	}
 
 	_abortControllers() {
-		const controllers = this._controllers;
+		const controllers = [...this._controllers];
 
 		controllers.forEach((controller) => {
 			controller.abort();
 		});
 
-		controllers.clear();
+		this._controllers.removeObjects(controllers);
 	}
 
 	_handleError() {
@@ -190,7 +188,7 @@ export default class NetworkService extends Service.extend(Evented) {
 			this.setState(STATES.LIMITED);
 
 			if (reconnect.auto) {
-				this.incrementProperty('_times');
+				this._times++;
 				this._delayReconnect();
 			}
 		} else {
@@ -217,10 +215,8 @@ export default class NetworkService extends Service.extend(Evented) {
 
 		const timer = later(this, '_reconnect', delay);
 
-		this.setProperties({
-			_nextDelay: nextDelay,
-			_timestamp: Date.now() + delay,
-			_timer: timer
-		});
+		this._nextDelay = nextDelay;
+		this._timestamp = Date.now() + delay;
+		this._timer = timer;
 	}
 }
