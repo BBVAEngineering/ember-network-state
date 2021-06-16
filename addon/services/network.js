@@ -2,7 +2,6 @@ import { action } from '@ember/object';
 import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
-import fetch, { AbortController } from 'fetch';
 import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, readOnly } from '@ember/object/computed';
@@ -126,6 +125,10 @@ export default class NetworkService extends Service.extend(Evented) {
 		}
 	}
 
+	_fetch(...args) {
+		return window.fetch(...args);
+	}
+
 	async _reconnect() {
 		const { reconnect } = this._config;
 		const controller = new AbortController();
@@ -140,7 +143,7 @@ export default class NetworkService extends Service.extend(Evented) {
 		let status = 0;
 
 		try {
-			const response = await fetch(reconnect.path, {
+			const response = await this._fetch(reconnect.path, {
 				method: 'HEAD',
 				cache: 'no-store',
 				signal: controller.signal,
