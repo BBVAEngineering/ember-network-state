@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: yarn install
       - name: Release
-        run: semantic-release
+        run: yarn semantic-release
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
