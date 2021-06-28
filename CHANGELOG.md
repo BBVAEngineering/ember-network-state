@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.3.0...v2.4.0) (2021-06-28)
+
+
+### Features
+
+* remove ember-fetch from dependencies ([a3d6b40](https://github.com/BBVAEngineering/ember-network-state/commit/a3d6b40df1e7221f5d809d302fdde30c9144d228))
+
 # [2.3.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.2.0...v2.3.0) (2021-04-22)
 
 
