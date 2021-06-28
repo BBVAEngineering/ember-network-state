@@ -7,6 +7,8 @@ import waitUntil from '@ember/test-helpers/wait-until';
 import { bind, later, run } from '@ember/runloop';
 import Ember from 'ember';
 import { setupQunit as setupPolly } from '@pollyjs/core';
+import { waitFor } from '@ember/test-waiters';
+import NetworkService from 'dummy/services/network';
 
 const { Test } = Ember;
 
@@ -136,6 +138,11 @@ module('Unit | Services | network', (hooks) => {
 		this.asyncFetch = asyncFetch(this);
 		this.tick = tick(this.sandbox.clock);
 		this.owner.register('config:environment', { 'network-state': this.config }, { instantiate: false });
+		this.owner.register('service:network', NetworkService.extend({
+			_fetch: waitFor(function(...args) {
+				return this._super(...args);
+			})
+		}));
 		this._navigator = window.navigator;
 		this.navigator = { connection: new EventTarget() };
 		this.goOnline();
