@@ -27,6 +27,8 @@ module.exports = {
 		// node files
 		{
 			files: [
+				'.huskyrc.js',
+				'.commitlintrc.js',
 				'.eslintrc.js',
 				'.prettierrc.js',
 				'.template-lintrc.js',
@@ -52,6 +54,14 @@ module.exports = {
 			},
 			plugins: ['node'],
 			extends: ['plugin:node/recommended'],
+		},
+		{
+			// Test files:
+			files: ['tests/**/*-test.{js,ts}'],
+			extends: ['plugin:qunit/recommended'],
+			rules: {
+				'qunit/require-expect': 'off',
+			},
 		},
 	],
 };
