@@ -2,5 +2,5 @@
 'use strict';
 
 module.exports = {
-	name: 'ember-network-state'
+	name: 'ember-network-state',
 };

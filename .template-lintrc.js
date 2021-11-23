@@ -18,9 +18,7 @@ module.exports = {
 		'no-unused-block-params': true,
 		'inline-link-to': true,
 		'no-inline-styles': true,
-		'simple-unless': false
+		'simple-unless': false,
 	},
-	ignore: [
-		'tests/dummy/**'
-	]
+	ignore: ['tests/dummy/**'],
 };

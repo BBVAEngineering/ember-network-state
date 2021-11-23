@@ -21,7 +21,9 @@ function wait(fn) {
 }
 
 function waitForIdle() {
-	return waitUntil(() => isSettled() && !Test.checkWaiters(), { timeout: Infinity });
+	return waitUntil(() => isSettled() && !Test.checkWaiters(), {
+		timeout: Infinity,
+	});
 }
 
 function waitForIntercepted(context) {
@@ -90,7 +92,7 @@ function goLimited(context) {
 function tick(context) {
 	const TICK = 1000;
 
-	return async(time) => {
+	return async (time) => {
 		for (let i = 0; i < time; i++) {
 			try {
 				context.tick(TICK);
@@ -108,7 +110,7 @@ function timeout(time) {
 }
 
 function intercept(context) {
-	return async(req, res) => {
+	return async (req, res) => {
 		context.intercepted = true;
 
 		if (context.timeout) {
@@ -127,7 +129,7 @@ module('Unit | Services | network', (hooks) => {
 	setupPolly(hooks);
 	setupTest(hooks);
 
-	hooks.beforeEach(function() {
+	hooks.beforeEach(function () {
 		this.polly.server.get('/*').passthrough();
 		this.polly.server.head('/favicon.ico').intercept(intercept(this));
 		this.sandbox = sinon.createSandbox({ useFakeTimers: true });
@@ -137,26 +139,33 @@ module('Unit | Services | network', (hooks) => {
 		this.goLimited = goLimited(this);
 		this.asyncFetch = asyncFetch(this);
 		this.tick = tick(this.sandbox.clock);
-		this.owner.register('config:environment', { 'network-state': this.config }, { instantiate: false });
-		this.owner.register('service:network', NetworkService.extend({
-			_fetch: waitFor(function(...args) {
-				return this._super(...args);
+		this.owner.register(
+			'config:environment',
+			{ 'network-state': this.config },
+			{ instantiate: false }
+		);
+		this.owner.register(
+			'service:network',
+			NetworkService.extend({
+				_fetch: waitFor(function (...args) {
+					return this._super(...args);
+				}),
 			})
-		}));
+		);
 		this._navigator = window.navigator;
 		this.navigator = { connection: new EventTarget() };
 		this.goOnline();
 
 		Object.defineProperty(window, 'navigator', {
 			get: () => this.navigator,
-			configurable: true
+			configurable: true,
 		});
 	});
 
-	hooks.afterEach(async function() {
+	hooks.afterEach(async function () {
 		Object.defineProperty(window, 'navigator', {
 			get: () => this._navigator,
-			configurable: true
+			configurable: true,
 		});
 
 		this.sandbox.restore();
@@ -166,25 +175,29 @@ module('Unit | Services | network', (hooks) => {
 
 	// initial states.
 
-	test('it exists', function(assert) {
+	test('it exists', function (assert) {
 		assert.expect(0);
 
 		this.owner.lookup('service:network');
 	});
 
-	test('it has initial values', function(assert) {
+	test('it has initial values', function (assert) {
 		const service = this.owner.lookup('service:network');
 
 		assert.equal(service.lastReconnectDuration, 0);
 		assert.equal(service.lastReconnectStatus, 0);
 	});
 
-	test('it is online', async function(assert) {
+	test('it is online', async function (assert) {
 		this.goOnline();
 
 		const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+		assert.equal(
+			service.get('state'),
+			STATES.ONLINE,
+			'initial state is expected'
+		);
 		assert.ok(service.get('isOnline'), 'service is online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.notOk(service.get('isOffline'), 'service is not offline');
@@ -196,29 +209,43 @@ module('Unit | Services | network', (hooks) => {
 		assert.ok(service.get('isOnline'), 'service is online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 	});
 
-	test('it is offline', async function(assert) {
+	test('it is offline', async function (assert) {
 		this.goOffline();
 
 		const service = this.owner.lookup('service:network');
 
 		await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
+		assert.equal(
+			service.get('state'),
+			STATES.OFFLINE,
+			'initial state is expected'
+		);
 		assert.notOk(service.get('isOnline'), 'service is not online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.ok(service.get('isOffline'), 'service is offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 	});
 
-	test('it is limited', async function(assert) {
+	test('it is limited', async function (assert) {
 		this.goLimited();
 
 		const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+		assert.equal(
+			service.get('state'),
+			STATES.ONLINE,
+			'initial state is expected'
+		);
 		assert.ok(service.get('isOnline'), 'service is online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.notOk(service.get('isOffline'), 'service is not offline');
@@ -230,12 +257,15 @@ module('Unit | Services | network', (hooks) => {
 		assert.notOk(service.get('isOnline'), 'service is not online');
 		assert.ok(service.get('isLimited'), 'service is limited');
 		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 	});
 
 	// state changes.
 
-	test('it changes to online from offline', async function(assert) {
+	test('it changes to online from offline', async function (assert) {
 		this.goOffline();
 
 		const service = this.owner.lookup('service:network');
@@ -250,11 +280,14 @@ module('Unit | Services | network', (hooks) => {
 		assert.ok(service.get('isOnline'), 'service is online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 		assert.equal(this.polly._requests.length, 1, 'requests are expected');
 	});
 
-	test('it changes to offline from online', async function(assert) {
+	test('it changes to offline from online', async function (assert) {
 		this.goOnline();
 
 		const service = this.owner.lookup('service:network');
@@ -265,14 +298,21 @@ module('Unit | Services | network', (hooks) => {
 
 		await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
+		assert.equal(
+			service.get('state'),
+			STATES.OFFLINE,
+			'initial state is expected'
+		);
 		assert.notOk(service.get('isOnline'), 'service is not online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.ok(service.get('isOffline'), 'service is offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 	});
 
-	test('it changes to offline from limited', async function(assert) {
+	test('it changes to offline from limited', async function (assert) {
 		this.goLimited();
 
 		const service = this.owner.lookup('service:network');
@@ -283,14 +323,21 @@ module('Unit | Services | network', (hooks) => {
 
 		await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
+		assert.equal(
+			service.get('state'),
+			STATES.OFFLINE,
+			'initial state is expected'
+		);
 		assert.notOk(service.get('isOnline'), 'service is not online');
 		assert.notOk(service.get('isLimited'), 'service is not limited');
 		assert.ok(service.get('isOffline'), 'service is offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 	});
 
-	test('it changes to limited from online', async function(assert) {
+	test('it changes to limited from online', async function (assert) {
 		this.asyncFetch();
 
 		this.goOnline();
@@ -307,10 +354,13 @@ module('Unit | Services | network', (hooks) => {
 		assert.notOk(service.get('isOnline'), 'service is not online');
 		assert.ok(service.get('isLimited'), 'service is limited');
 		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+		assert.notOk(
+			service.get('isReconnecting'),
+			'service is not reconnecting'
+		);
 	});
 
-	test('it tests online connection on network change', async function(assert) {
+	test('it tests online connection on network change', async function (assert) {
 		this.goOnline();
 
 		const service = this.owner.lookup('service:network');
@@ -325,7 +375,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(this.polly._requests.length, 2, 'requests are expected');
 	});
 
-	test('it tests online connection with no cache', async function(assert) {
+	test('it tests online connection with no cache', async function (assert) {
 		this.goOnline();
 
 		const service = this.owner.lookup('service:network');
@@ -339,11 +389,15 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 
 		this.polly._requests.forEach((request) => {
-			assert.equal(request.headers['cache-control'], 'no-cache', 'header is expected');
+			assert.equal(
+				request.headers['cache-control'],
+				'no-cache',
+				'header is expected'
+			);
 		});
 	});
 
-	test('it supports no implementations of connection API', async function(assert) {
+	test('it supports no implementations of connection API', async function (assert) {
 		this.goOnline();
 
 		delete window.navigator.connection;
@@ -359,7 +413,7 @@ module('Unit | Services | network', (hooks) => {
 		run(service, 'destroy');
 	});
 
-	test('"state" property cannot be changed', async function(assert) {
+	test('"state" property cannot be changed', async function (assert) {
 		this.goOffline();
 
 		const service = this.owner.lookup('service:network');
@@ -377,7 +431,7 @@ module('Unit | Services | network', (hooks) => {
 
 	// reconnect method
 
-	test('it reconnects from online', async function(assert) {
+	test('it reconnects from online', async function (assert) {
 		this.goOnline();
 
 		const service = this.owner.lookup('service:network');
@@ -393,7 +447,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 	});
 
-	test('it reconnects from offline', async function(assert) {
+	test('it reconnects from offline', async function (assert) {
 		this.goOffline();
 
 		const service = this.owner.lookup('service:network');
@@ -409,7 +463,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
 	});
 
-	test('it reconnects from limited', async function(assert) {
+	test('it reconnects from limited', async function (assert) {
 		this.goLimited();
 
 		const service = this.owner.lookup('service:network');
@@ -425,7 +479,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 	});
 
-	test('it aborts previous reconnects when reconnecting', async function(assert) {
+	test('it aborts previous reconnects when reconnecting', async function (assert) {
 		const service = this.owner.lookup('service:network');
 		let requests = 0;
 
@@ -445,13 +499,17 @@ module('Unit | Services | network', (hooks) => {
 
 		await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
+		assert.equal(
+			service.get('state'),
+			STATES.ONLINE,
+			'initial state is expected'
+		);
 		assert.equal(this.polly._requests.length, 3, 'requests are expected');
 	});
 
 	// timer
 
-	test('it keeps reconnecting until reconnect goes ok without connection API', async function(assert) {
+	test('it keeps reconnecting until reconnect goes ok without connection API', async function (assert) {
 		this.goLimited();
 
 		delete window.navigator.connection;
@@ -461,7 +519,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 10000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: Infinity
+			maxTimes: Infinity,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -472,7 +530,11 @@ module('Unit | Services | network', (hooks) => {
 
 		this.goOnline();
 
-		assert.notEqual(service.get('state'), STATES.ONLINE, 'state is expected');
+		assert.notEqual(
+			service.get('state'),
+			STATES.ONLINE,
+			'state is expected'
+		);
 		assert.equal(this.polly._requests.length, 4, 'requests are expected');
 
 		await this.tick(60);
@@ -481,7 +543,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(this.polly._requests.length, 5, 'requests are expected');
 	});
 
-	test('it keeps reconnecting until reconnect goes ok with connection API', async function(assert) {
+	test('it keeps reconnecting until reconnect goes ok with connection API', async function (assert) {
 		this.goLimited();
 
 		this.config.reconnect = {
@@ -489,7 +551,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 10000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: Infinity
+			maxTimes: Infinity,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -506,7 +568,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(this.polly._requests.length, 5, 'requests are expected');
 	});
 
-	test('it keeps reconnecting until network goes offline', async function(assert) {
+	test('it keeps reconnecting until network goes offline', async function (assert) {
 		this.goLimited();
 
 		this.config.reconnect = {
@@ -514,7 +576,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 10000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: Infinity
+			maxTimes: Infinity,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -531,7 +593,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(this.polly._requests.length, 4, 'requests are expected');
 	});
 
-	test('it keeps reconnecting until it reaches max tries', async function(assert) {
+	test('it keeps reconnecting until it reaches max tries', async function (assert) {
 		this.goLimited();
 
 		this.config.reconnect = {
@@ -539,7 +601,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 5000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: 3
+			maxTimes: 3,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -552,7 +614,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(this.polly._requests.length, 3, 'requests are expected');
 	});
 
-	test('it resets reconnects when forced', async function(assert) {
+	test('it resets reconnects when forced', async function (assert) {
 		this.goLimited();
 
 		this.config.reconnect = {
@@ -560,7 +622,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 5000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: 4
+			maxTimes: 4,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -582,7 +644,7 @@ module('Unit | Services | network', (hooks) => {
 
 	// change event
 
-	test('it sends change action on online event', async function(assert) {
+	test('it sends change action on online event', async function (assert) {
 		assert.expect(1);
 
 		this.goOffline();
@@ -600,7 +662,7 @@ module('Unit | Services | network', (hooks) => {
 		await waitForIdle();
 	});
 
-	test('it sends change action on limited event', async function(assert) {
+	test('it sends change action on limited event', async function (assert) {
 		assert.expect(1);
 
 		this.asyncFetch();
@@ -620,7 +682,7 @@ module('Unit | Services | network', (hooks) => {
 		await waitForIdle();
 	});
 
-	test('it sends change action on offline event', async function(assert) {
+	test('it sends change action on offline event', async function (assert) {
 		assert.expect(1);
 
 		this.goOnline();
@@ -640,7 +702,7 @@ module('Unit | Services | network', (hooks) => {
 
 	// remaining
 
-	test('it returns remaining time for next reconnect', async function(assert) {
+	test('it returns remaining time for next reconnect', async function (assert) {
 		this.goLimited();
 
 		this.config.reconnect = {
@@ -648,7 +710,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 5000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: 3
+			maxTimes: 3,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -657,29 +719,44 @@ module('Unit | Services | network', (hooks) => {
 
 		assert.ok(service.get('hasTimer'), 'timer is enabled');
 		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
+		assert.equal(
+			service.get('remaining'),
+			5000,
+			'first remaining is expected'
+		);
 		assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
 		await this.tick(2);
 
 		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('remaining'), 3000, 'second remaining is expected');
+		assert.equal(
+			service.get('remaining'),
+			3000,
+			'second remaining is expected'
+		);
 		assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
 		await this.tick(5);
 
 		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('remaining'), 8000, 'third remaining is expected');
+		assert.equal(
+			service.get('remaining'),
+			8000,
+			'third remaining is expected'
+		);
 		assert.equal(this.polly._requests.length, 2, 'requests are expected');
 
 		await this.tick(10);
 
 		assert.notOk(service.get('hasTimer'), 'timer is disabled');
-		assert.ok(isNaN(service.get('remaining')), 'forth remaining is expected');
+		assert.ok(
+			isNaN(service.get('remaining')),
+			'forth remaining is expected'
+		);
 		assert.equal(this.polly._requests.length, 3, 'requests are expected');
 	});
 
-	test('it never returns negative remaining', async function(assert) {
+	test('it never returns negative remaining', async function (assert) {
 		this.timeout = 10;
 
 		this.goLimited();
@@ -689,7 +766,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 5000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: 2
+			maxTimes: 2,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -702,19 +779,27 @@ module('Unit | Services | network', (hooks) => {
 
 		assert.ok(service.get('hasTimer'), 'timer is enabled');
 		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
+		assert.equal(
+			service.get('remaining'),
+			5000,
+			'first remaining is expected'
+		);
 		assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
 		this.sandbox.clock.tick(5005);
 
-		assert.equal(service.get('remaining'), 0, 'third remaining is expected');
+		assert.equal(
+			service.get('remaining'),
+			0,
+			'third remaining is expected'
+		);
 
 		await waitForIntercepted(this);
 
 		this.sandbox.clock.tick(10);
 	});
 
-	test('it resets reconnects on network change', async function(assert) {
+	test('it resets reconnects on network change', async function (assert) {
 		this.timeout = 10;
 
 		this.goLimited();
@@ -724,7 +809,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 5000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: 2
+			maxTimes: 2,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -760,13 +845,13 @@ module('Unit | Services | network', (hooks) => {
 
 	// config
 
-	test('it allows path config', async function(assert) {
+	test('it allows path config', async function (assert) {
 		const path = '/foo/bar';
 
 		this.goOnline();
 
 		this.config.reconnect = {
-			path
+			path,
 		};
 
 		this.polly.server.head(path).intercept(intercept(this));
@@ -778,7 +863,7 @@ module('Unit | Services | network', (hooks) => {
 		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 	});
 
-	test('it works with no config', function(assert) {
+	test('it works with no config', function (assert) {
 		assert.expect(0);
 
 		this.owner.register('config:environment', {}, { instantiate: false });
@@ -788,13 +873,13 @@ module('Unit | Services | network', (hooks) => {
 
 	// fetch
 
-	test('it knows last reconnect duration', async function(assert) {
+	test('it knows last reconnect duration', async function (assert) {
 		this.timeout = 5000;
 
 		this.goLimited();
 
 		this.config.reconnect = {
-			auto: false
+			auto: false,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -806,10 +891,14 @@ module('Unit | Services | network', (hooks) => {
 		await waitForIdle();
 
 		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(service.get('lastReconnectDuration'), 5000, 'duration is expected');
+		assert.equal(
+			service.get('lastReconnectDuration'),
+			5000,
+			'duration is expected'
+		);
 	});
 
-	test('it knows last reconnect status', async function(assert) {
+	test('it knows last reconnect status', async function (assert) {
 		this.asyncFetch();
 
 		this.goOnline();
@@ -817,7 +906,7 @@ module('Unit | Services | network', (hooks) => {
 		this.status = 404;
 
 		this.config.reconnect = {
-			auto: false
+			auto: false,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -825,23 +914,30 @@ module('Unit | Services | network', (hooks) => {
 		await waitForIdle();
 
 		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.equal(service.get('lastReconnectStatus'), 404, 'status is expected');
+		assert.equal(
+			service.get('lastReconnectStatus'),
+			404,
+			'status is expected'
+		);
 
 		this.goLimited();
 
 		await waitForIdle();
 
 		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.notOk(service.get('lastReconnectStatus'), 'status is not expected');
+		assert.notOk(
+			service.get('lastReconnectStatus'),
+			'status is not expected'
+		);
 	});
 
 	// timeout
 
-	test('it aborts reconnect on timeout', async function(assert) {
+	test('it aborts reconnect on timeout', async function (assert) {
 		this.timeout = 20000;
 		this.config.reconnect = {
 			auto: false,
-			timeout: 10000
+			timeout: 10000,
 		};
 
 		this.goOnline();
@@ -860,7 +956,7 @@ module('Unit | Services | network', (hooks) => {
 
 	// never trust the API
 
-	test('it goes online even when API is offline', async function(assert) {
+	test('it goes online even when API is offline', async function (assert) {
 		this.goOffline();
 
 		const service = this.owner.lookup('service:network');
@@ -878,7 +974,7 @@ module('Unit | Services | network', (hooks) => {
 
 	// service destroy
 
-	test('it does not throw an error when destroyed on reconnect', async function(assert) {
+	test('it does not throw an error when destroyed on reconnect', async function (assert) {
 		assert.expect(0);
 
 		this.timeout = 1000;
@@ -894,13 +990,13 @@ module('Unit | Services | network', (hooks) => {
 		this.sandbox.clock.tick(1000);
 	});
 
-	test('it does not throw an error when destroyed on timeout', async function(assert) {
+	test('it does not throw an error when destroyed on timeout', async function (assert) {
 		assert.expect(0);
 
 		this.timeout = 20000;
 		this.config.reconnect = {
 			auto: false,
-			timeout: 10000
+			timeout: 10000,
 		};
 
 		this.goOnline();
@@ -917,7 +1013,7 @@ module('Unit | Services | network', (hooks) => {
 		await this.tick(1);
 	});
 
-	test('it does not throw an error when destroyed on delayed reconnect', async function(assert) {
+	test('it does not throw an error when destroyed on delayed reconnect', async function (assert) {
 		this.goLimited();
 
 		this.config.reconnect = {
@@ -925,7 +1021,7 @@ module('Unit | Services | network', (hooks) => {
 			delay: 5000,
 			multiplier: 2,
 			maxDelay: 60000,
-			maxTimes: 2
+			maxTimes: 2,
 		};
 
 		const service = this.owner.lookup('service:network');
@@ -940,4 +1036,3 @@ module('Unit | Services | network', (hooks) => {
 		await this.tick(5);
 	});
 });
-

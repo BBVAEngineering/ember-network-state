@@ -57,9 +57,14 @@ export default class NetworkService extends Service.extend(Evented) {
 	init() {
 		super.init(...arguments);
 
-		const appConfig = getOwner(this).resolveRegistration('config:environment');
+		const appConfig =
+			getOwner(this).resolveRegistration('config:environment');
 		const addonConfig = appConfig['network-state'] || {};
-		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
+		const reconnect = Object.assign(
+			{},
+			CONFIG.reconnect,
+			addonConfig.reconnect
+		);
 
 		this._times = 0;
 		this._controllers = A();
@@ -93,7 +98,11 @@ export default class NetworkService extends Service.extend(Evented) {
 	}
 
 	get _connection() {
-		return window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection;
+		return (
+			window.navigator.connection ||
+			window.navigator.mozConnection ||
+			window.navigator.webkitConnection
+		);
 	}
 
 	_clearTimer() {
@@ -147,7 +156,7 @@ export default class NetworkService extends Service.extend(Evented) {
 				method: 'HEAD',
 				cache: 'no-store',
 				signal: controller.signal,
-				headers: { 'cache-control': 'no-cache' }
+				headers: { 'cache-control': 'no-cache' },
 			});
 
 			if (!this.isDestroyed) {
@@ -201,7 +210,8 @@ export default class NetworkService extends Service.extend(Evented) {
 
 	_delayReconnect() {
 		const { reconnect } = this._config;
-		const delay = (this._nextDelay === undefined ? reconnect.delay : this._nextDelay);
+		const delay =
+			this._nextDelay === undefined ? reconnect.delay : this._nextDelay;
 		const times = this._times;
 		let nextDelay = delay * reconnect.multiplier;
 

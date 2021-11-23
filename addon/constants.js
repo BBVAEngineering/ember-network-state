@@ -2,7 +2,7 @@ export const STATES = {
 	ONLINE: 'ONLINE',
 	OFFLINE: 'OFFLINE',
 	RECONNECTING: 'RECONNECTING',
-	LIMITED: 'LIMITED'
+	LIMITED: 'LIMITED',
 };
 
 export const CONFIG = {
@@ -13,11 +13,11 @@ export const CONFIG = {
 		multiplier: 1.5,
 		timeout: 15000,
 		maxDelay: 60000,
-		maxTimes: -1
-	}
+		maxTimes: -1,
+	},
 };
 
 export default {
 	STATES,
-	CONFIG
+	CONFIG,
 };
