@@ -3,7 +3,7 @@ language: node_js
 node_js:
   # we recommend testing addons with the same minimum supported node version as Ember CLI
   # so that your addon works for all apps
-  - "12"
+  - '12'
 
 dist: xenial
 
@@ -27,7 +27,7 @@ jobs:
     - env: EMBER_TRY_SCENARIO=ember-canary
 
   include:
-    - stage: "Tests"
+    - stage: 'Tests'
       before_install:
         - npm install -g codecov
         - npm install -g @commitlint/travis-cli
@@ -53,7 +53,7 @@ jobs:
     - env: EMBER_TRY_SCENARIO=embroider-safe
     - env: EMBER_TRY_SCENARIO=embroider-optimized
 
-    - stage: "Release"
+    - stage: 'Release'
       script: skip
       deploy:
         provider: script
@@ -67,7 +67,7 @@ script:
   - node_modules/.bin/ember try:one $EMBER_TRY_SCENARIO
 
 stages:
-  - "Tests"
-  - "Regression Tests"
-  - name: "Release"
+  - 'Tests'
+  - 'Regression Tests'
+  - name: 'Release'
     if: branch = master

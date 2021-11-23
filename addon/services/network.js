@@ -6,19 +6,19 @@ import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { equal, notEmpty, readOnly } from '@ember/object/computed';
 import { A } from '@ember/array';
-import { tracked } from '@glimmer/tracking';
+import { set } from '@ember/object';
 
 export default class NetworkService extends Service.extend(Evented) {
-	@tracked lastReconnectDuration = 0;
-	@tracked lastReconnectStatus = 0;
+	lastReconnectDuration = 0;
+	lastReconnectStatus = 0;
 
-	@tracked _timer;
-	@tracked _times;
-	@tracked _timestamp;
-	@tracked _state;
-	@tracked _controllers;
-	@tracked _config;
-	@tracked _nextDelay;
+	_timer;
+	_times;
+	_timestamp;
+	_state;
+	_controllers;
+	_config;
+	_nextDelay;
 
 	@readOnly('_state') state;
 	@equal('_state', STATES.ONLINE) isOnline;
@@ -48,7 +48,7 @@ export default class NetworkService extends Service.extend(Evented) {
 		if (state !== this._state) {
 			this._clearTimer();
 
-			this._state = state;
+			set(this, '_state', state);
 
 			this.trigger('change', state);
 		}
@@ -66,9 +66,9 @@ export default class NetworkService extends Service.extend(Evented) {
 			addonConfig.reconnect
 		);
 
-		this._times = 0;
-		this._controllers = A();
-		this._config = { reconnect };
+		set(this, '_times', 0);
+		set(this, '_controllers', A());
+		set(this, '_config', { reconnect });
 
 		if (this._connection) {
 			this._connection.addEventListener('change', this._changeNetwork);
@@ -110,12 +110,12 @@ export default class NetworkService extends Service.extend(Evented) {
 
 		if (timer) {
 			cancel(timer);
-			this._timer = undefined;
+			set(this, '_timer', undefined);
 		}
 
-		this._nextDelay = undefined;
-		this._times = 0;
-		this._timestamp = undefined;
+		set(this, '_nextDelay', undefined);
+		set(this, '_times', 0);
+		set(this, '_timestamp', undefined);
 	}
 
 	@action
@@ -176,8 +176,8 @@ export default class NetworkService extends Service.extend(Evented) {
 			cancel(timeout);
 
 			if (!this.isDestroyed && !this.isReconnecting) {
-				this.lastReconnectStatus = status;
-				this.lastReconnectDuration = performance.now() - start;
+				set(this, 'lastReconnectStatus', status);
+				set(this, 'lastReconnectDuration', performance.now() - start);
 			}
 		}
 	}
@@ -210,8 +210,8 @@ export default class NetworkService extends Service.extend(Evented) {
 
 	_delayReconnect() {
 		const { reconnect } = this._config;
-		const delay =
-			this._nextDelay === undefined ? reconnect.delay : this._nextDelay;
+		const _nextDelay = this._nextDelay;
+		const delay = _nextDelay === undefined ? reconnect.delay : _nextDelay;
 		const times = this._times;
 		let nextDelay = delay * reconnect.multiplier;
 
@@ -228,8 +228,8 @@ export default class NetworkService extends Service.extend(Evented) {
 
 		const timer = later(this, '_reconnect', delay);
 
-		this._nextDelay = nextDelay;
-		this._timestamp = Date.now() + delay;
-		this._timer = timer;
+		set(this, '_nextDelay', nextDelay);
+		set(this, '_timestamp', Date.now() + delay);
+		set(this, '_timer', timer);
 	}
 }
