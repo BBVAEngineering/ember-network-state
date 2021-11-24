@@ -10,7 +10,7 @@ import { tracked } from '@glimmer/tracking';
 export default class NetworkService extends Service.extend(Evented) {
 	@tracked lastReconnectDuration = 0;
 	@tracked lastReconnectStatus = 0;
-	@tracked _times = 0;
+	@tracked _times;
 	@tracked _timer;
 	@tracked _timestamp;
 	@tracked _state = window.navigator.onLine ? STATES.ONLINE : STATES.OFFLINE;
