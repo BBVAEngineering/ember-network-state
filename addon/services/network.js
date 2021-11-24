@@ -6,7 +6,6 @@ import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { A } from '@ember/array';
 import { tracked } from '@glimmer/tracking';
-import { set } from '@ember/object';
 
 export default class NetworkService extends Service.extend(Evented) {
 	@tracked lastReconnectDuration = 0;
@@ -17,6 +16,7 @@ export default class NetworkService extends Service.extend(Evented) {
 	@tracked _state = window.navigator.onLine ? STATES.ONLINE : STATES.OFFLINE;
 	@tracked _config;
 	@tracked _nextDelay;
+	_controllers = A();
 
 	get state() {
 		return this._state;
@@ -92,8 +92,6 @@ export default class NetworkService extends Service.extend(Evented) {
 		const onLine = window.navigator.onLine;
 
 		this.setState(onLine ? STATES.ONLINE : STATES.OFFLINE);
-
-		set(this, '_controllers', A());
 
 		if (onLine) {
 			this.reconnect();

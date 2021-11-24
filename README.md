@@ -39,7 +39,7 @@ Inject the service in your app:
 
 ```javascript
 export default class MyClass {
-    @service network;
+  @service network;
 }
 ```
 
