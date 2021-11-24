@@ -38,9 +38,9 @@ ember install ember-network-state
 Inject the service in your app:
 
 ```javascript
-export default Component.extend({
-  network: inject(),
-});
+export default class MyClass {
+    @service network;
+}
 ```
 
 ### Interface
