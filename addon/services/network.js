@@ -1,31 +1,46 @@
 import { action } from '@ember/object';
-import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
+import Evented from '@ember/object/evented';
 import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
-import { equal, notEmpty, readOnly } from '@ember/object/computed';
 import { A } from '@ember/array';
+import { tracked } from '@glimmer/tracking';
 import { set } from '@ember/object';
 
 export default class NetworkService extends Service.extend(Evented) {
-	lastReconnectDuration = 0;
-	lastReconnectStatus = 0;
+	@tracked lastReconnectDuration = 0;
+	@tracked lastReconnectStatus = 0;
+	@tracked _times = 0;
+	@tracked _timer;
+	@tracked _timestamp;
+	@tracked _state = window.navigator.onLine ? STATES.ONLINE : STATES.OFFLINE;
+	@tracked _config;
+	@tracked _nextDelay;
 
-	_timer;
-	_times;
-	_timestamp;
-	_state;
-	_controllers;
-	_config;
-	_nextDelay;
+	get state() {
+		return this._state;
+	}
 
-	@readOnly('_state') state;
-	@equal('_state', STATES.ONLINE) isOnline;
-	@equal('_state', STATES.OFFLINE) isOffline;
-	@equal('_state', STATES.LIMITED) isLimited;
-	@notEmpty('_controllers') isReconnecting;
-	@notEmpty('_timer') hasTimer;
+	get isOnline() {
+		return this._state === STATES.ONLINE;
+	}
+
+	get isOffline() {
+		return this._state === STATES.OFFLINE;
+	}
+
+	get isLimited() {
+		return this._state === STATES.LIMITED;
+	}
+
+	get isReconnecting() {
+		return !!this._controllers.length;
+	}
+
+	get hasTimer() {
+		return !!this._timer;
+	}
 
 	get remaining() {
 		const timestamp = this._timestamp;
@@ -48,14 +63,13 @@ export default class NetworkService extends Service.extend(Evented) {
 		if (state !== this._state) {
 			this._clearTimer();
 
-			set(this, '_state', state);
-
+			this._state = state;
 			this.trigger('change', state);
 		}
 	}
 
-	init() {
-		super.init(...arguments);
+	constructor() {
+		super(...arguments);
 
 		const appConfig =
 			getOwner(this).resolveRegistration('config:environment');
@@ -66,9 +80,7 @@ export default class NetworkService extends Service.extend(Evented) {
 			addonConfig.reconnect
 		);
 
-		set(this, '_times', 0);
-		set(this, '_controllers', A());
-		set(this, '_config', { reconnect });
+		this._config = { reconnect };
 
 		if (this._connection) {
 			this._connection.addEventListener('change', this._changeNetwork);
@@ -80,6 +92,8 @@ export default class NetworkService extends Service.extend(Evented) {
 		const onLine = window.navigator.onLine;
 
 		this.setState(onLine ? STATES.ONLINE : STATES.OFFLINE);
+
+		set(this, '_controllers', A());
 
 		if (onLine) {
 			this.reconnect();
@@ -110,12 +124,12 @@ export default class NetworkService extends Service.extend(Evented) {
 
 		if (timer) {
 			cancel(timer);
-			set(this, '_timer', undefined);
+			this._timer = undefined;
 		}
 
-		set(this, '_nextDelay', undefined);
-		set(this, '_times', 0);
-		set(this, '_timestamp', undefined);
+		this._nextDelay = undefined;
+		this._times = 0;
+		this._timestamp = undefined;
 	}
 
 	@action
@@ -176,8 +190,8 @@ export default class NetworkService extends Service.extend(Evented) {
 			cancel(timeout);
 
 			if (!this.isDestroyed && !this.isReconnecting) {
-				set(this, 'lastReconnectStatus', status);
-				set(this, 'lastReconnectDuration', performance.now() - start);
+				this.lastReconnectStatus = status;
+				this.lastReconnectDuration = performance.now() - start;
 			}
 		}
 	}
@@ -228,8 +242,8 @@ export default class NetworkService extends Service.extend(Evented) {
 
 		const timer = later(this, '_reconnect', delay);
 
-		set(this, '_nextDelay', nextDelay);
-		set(this, '_timestamp', Date.now() + delay);
-		set(this, '_timer', timer);
+		this._nextDelay = nextDelay;
+		this._timestamp = Date.now() + delay;
+		this._timer = timer;
 	}
 }

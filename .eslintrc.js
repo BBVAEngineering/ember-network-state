@@ -19,10 +19,6 @@ module.exports = {
 	env: {
 		browser: true,
 	},
-	rules: {
-		'ember/no-computed-properties-in-native-classes': 'off',
-		'ember/classic-decorator-hooks': 'off',
-	},
 	overrides: [
 		// node files
 		{
