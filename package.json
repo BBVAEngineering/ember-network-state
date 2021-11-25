@@ -34,8 +34,7 @@
     "semantic-release": "semantic-release",
     "lint:style": "prettier --check .",
     "lint:style:fix": "prettier --write .",
-    "prepare": "husky install",
-    "test:release": "semantic-release --branches=$(git rev-parse --abbrev-ref HEAD) --dry-run"
+    "prepare": "husky install"
   },
   "dependencies": {
     "ember-cli-babel": "^7.26.6",
