@@ -1,3 +1,13 @@
+# [2.5.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.4.0...v2.5.0) (2021-11-29)
+
+
+### Features
+
+* life-ycle ([06f8256](https://github.com/BBVAEngineering/ember-network-state/commit/06f825641ae51277a2cf4dd85f41ac59a0295315))
+* remove trackeds in service/network.js ([5acf302](https://github.com/BBVAEngineering/ember-network-state/commit/5acf302711a58b4e3d8c30ef7b6c7288fcf18695))
+* update to ember 3.26.1 ([b491d64](https://github.com/BBVAEngineering/ember-network-state/commit/b491d646c92ff75c9d008c4d35494ada2f07faaf))
+* update to ember 3.28.0 ([bfecb33](https://github.com/BBVAEngineering/ember-network-state/commit/bfecb33ff99a5dbcd9cdf4f8ee31bb20689fa0c7))
+
 # [2.4.0](https://github.com/BBVAEngineering/ember-network-state/compare/v2.3.0...v2.4.0) (2021-06-28)
 
 ### Features
