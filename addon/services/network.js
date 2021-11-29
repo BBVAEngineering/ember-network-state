@@ -1,225 +1,246 @@
 import { action } from '@ember/object';
-import Evented from '@ember/object/evented';
 import Service from '@ember/service';
 import { STATES, CONFIG } from '../constants';
+import Evented from '@ember/object/evented';
 import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
-import { equal, notEmpty, readOnly } from '@ember/object/computed';
 import { A } from '@ember/array';
 import { tracked } from '@glimmer/tracking';
 
 export default class NetworkService extends Service.extend(Evented) {
-	@tracked lastReconnectDuration = 0;
-	@tracked lastReconnectStatus = 0;
+  @tracked lastReconnectDuration = 0;
+  @tracked lastReconnectStatus = 0;
+  @tracked _times;
+  @tracked _timer;
+  @tracked _timestamp;
+  @tracked _state = window.navigator.onLine ? STATES.ONLINE : STATES.OFFLINE;
+  @tracked _config;
+  @tracked _nextDelay;
+  _controllers = A();
 
-	@tracked _timer;
-	@tracked _times;
-	@tracked _timestamp;
-	@tracked _state;
-	@tracked _controllers;
-	@tracked _config;
-	@tracked _nextDelay;
+  get state() {
+    return this._state;
+  }
 
-	@readOnly('_state') state;
-	@equal('_state', STATES.ONLINE) isOnline;
-	@equal('_state', STATES.OFFLINE) isOffline;
-	@equal('_state', STATES.LIMITED) isLimited;
-	@notEmpty('_controllers') isReconnecting;
-	@notEmpty('_timer') hasTimer;
+  get isOnline() {
+    return this._state === STATES.ONLINE;
+  }
 
-	get remaining() {
-		const timestamp = this._timestamp;
+  get isOffline() {
+    return this._state === STATES.OFFLINE;
+  }
 
-		if (!timestamp) {
-			return NaN;
-		}
+  get isLimited() {
+    return this._state === STATES.LIMITED;
+  }
 
-		const delta = timestamp - Date.now();
+  get isReconnecting() {
+    return !!this._controllers.length;
+  }
 
-		return delta > 0 ? delta : 0;
-	}
+  get hasTimer() {
+    return !!this._timer;
+  }
 
-	reconnect() {
-		this._clearTimer();
-		this._reconnect();
-	}
+  get remaining() {
+    const timestamp = this._timestamp;
 
-	setState(state) {
-		if (state !== this._state) {
-			this._clearTimer();
+    if (!timestamp) {
+      return NaN;
+    }
 
-			this._state = state;
+    const delta = timestamp - Date.now();
 
-			this.trigger('change', state);
-		}
-	}
+    return delta > 0 ? delta : 0;
+  }
 
-	init() {
-		super.init(...arguments);
+  reconnect() {
+    this._clearTimer();
+    this._reconnect();
+  }
 
-		const appConfig = getOwner(this).resolveRegistration('config:environment');
-		const addonConfig = appConfig['network-state'] || {};
-		const reconnect = Object.assign({}, CONFIG.reconnect, addonConfig.reconnect);
+  setState(state) {
+    if (state !== this._state) {
+      this._clearTimer();
 
-		this._times = 0;
-		this._controllers = A();
-		this._config = { reconnect };
+      this._state = state;
+      this.trigger('change', state);
+    }
+  }
 
-		if (this._connection) {
-			this._connection.addEventListener('change', this._changeNetwork);
-		} else {
-			window.addEventListener('online', this._changeNetwork);
-			window.addEventListener('offline', this._changeNetwork);
-		}
+  constructor() {
+    super(...arguments);
 
-		const onLine = window.navigator.onLine;
+    const appConfig = getOwner(this).resolveRegistration('config:environment');
+    const addonConfig = appConfig['network-state'] || {};
+    const reconnect = Object.assign(
+      {},
+      CONFIG.reconnect,
+      addonConfig.reconnect
+    );
 
-		this.setState(onLine ? STATES.ONLINE : STATES.OFFLINE);
+    this._config = { reconnect };
 
-		if (onLine) {
-			this.reconnect();
-		}
-	}
+    if (this._connection) {
+      this._connection.addEventListener('change', this._changeNetwork);
+    } else {
+      window.addEventListener('online', this._changeNetwork);
+      window.addEventListener('offline', this._changeNetwork);
+    }
 
-	willDestroy() {
-		super.willDestroy(...arguments);
+    const onLine = window.navigator.onLine;
 
-		if (this._connection) {
-			this._connection.removeEventListener('change', this._changeNetwork);
-		}
+    this.setState(onLine ? STATES.ONLINE : STATES.OFFLINE);
 
-		window.removeEventListener('online', this._changeNetwork);
-		window.removeEventListener('offline', this._changeNetwork);
-	}
+    if (onLine) {
+      this.reconnect();
+    }
+  }
 
-	get _connection() {
-		return window.navigator.connection || window.navigator.mozConnection || window.navigator.webkitConnection;
-	}
+  willDestroy() {
+    super.willDestroy(...arguments);
 
-	_clearTimer() {
-		const timer = this._timer;
+    if (this._connection) {
+      this._connection.removeEventListener('change', this._changeNetwork);
+    }
 
-		if (timer) {
-			cancel(timer);
-			this._timer = undefined;
-		}
+    window.removeEventListener('online', this._changeNetwork);
+    window.removeEventListener('offline', this._changeNetwork);
+  }
 
-		this._nextDelay = undefined;
-		this._times = 0;
-		this._timestamp = undefined;
-	}
+  get _connection() {
+    return (
+      window.navigator.connection ||
+      window.navigator.mozConnection ||
+      window.navigator.webkitConnection
+    );
+  }
 
-	@action
-	_changeNetwork() {
-		const onLine = window.navigator.onLine;
+  _clearTimer() {
+    const timer = this._timer;
 
-		/* istanbul ignore else */
-		if (this._connection) {
-			this.trigger('connection-change', this._connection);
-		}
+    if (timer) {
+      cancel(timer);
+      this._timer = undefined;
+    }
 
-		if (!onLine) {
-			this.setState(STATES.OFFLINE);
-		} else {
-			this.reconnect();
-		}
-	}
+    this._nextDelay = undefined;
+    this._times = 0;
+    this._timestamp = undefined;
+  }
 
-	_fetch(...args) {
-		return window.fetch(...args);
-	}
+  @action
+  _changeNetwork() {
+    const onLine = window.navigator.onLine;
 
-	async _reconnect() {
-		const { reconnect } = this._config;
-		const controller = new AbortController();
+    /* istanbul ignore else */
+    if (this._connection) {
+      this.trigger('connection-change', this._connection);
+    }
 
-		// Cancel all ongoing controllers.
-		this._abortControllers();
-		// Push new controller.
-		this._controllers.pushObject(controller);
+    if (!onLine) {
+      this.setState(STATES.OFFLINE);
+    } else {
+      this.reconnect();
+    }
+  }
 
-		const timeout = later(controller, 'abort', reconnect.timeout);
-		const start = performance.now();
-		let status = 0;
+  _fetch(...args) {
+    return window.fetch(...args);
+  }
 
-		try {
-			const response = await this._fetch(reconnect.path, {
-				method: 'HEAD',
-				cache: 'no-store',
-				signal: controller.signal,
-				headers: { 'cache-control': 'no-cache' }
-			});
+  async _reconnect() {
+    const { reconnect } = this._config;
+    const controller = new AbortController();
 
-			if (!this.isDestroyed) {
-				this._controllers.removeObject(controller);
+    // Cancel all ongoing controllers.
+    this._abortControllers();
+    // Push new controller.
+    this._controllers.pushObject(controller);
 
-				status = response.status;
+    const timeout = later(controller, 'abort', reconnect.timeout);
+    const start = performance.now();
+    let status = 0;
 
-				this.setState(STATES.ONLINE);
-			}
-		} catch (e) {
-			this._controllers.removeObject(controller);
+    try {
+      const response = await this._fetch(reconnect.path, {
+        method: 'HEAD',
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: { 'cache-control': 'no-cache' },
+      });
 
-			if (!this.isDestroyed && !this.isReconnecting) {
-				this._handleError();
-			}
-		} finally {
-			cancel(timeout);
+      if (!this.isDestroyed) {
+        this._controllers.removeObject(controller);
 
-			if (!this.isDestroyed && !this.isReconnecting) {
-				this.lastReconnectStatus = status;
-				this.lastReconnectDuration = performance.now() - start;
-			}
-		}
-	}
+        status = response.status;
 
-	_abortControllers() {
-		const controllers = [...this._controllers];
+        this.setState(STATES.ONLINE);
+      }
+    } catch (e) {
+      this._controllers.removeObject(controller);
 
-		controllers.forEach((controller) => {
-			controller.abort();
-		});
+      if (!this.isDestroyed && !this.isReconnecting) {
+        this._handleError();
+      }
+    } finally {
+      cancel(timeout);
 
-		this._controllers.removeObjects(controllers);
-	}
+      if (!this.isDestroyed && !this.isReconnecting) {
+        this.lastReconnectStatus = status;
+        this.lastReconnectDuration = performance.now() - start;
+      }
+    }
+  }
 
-	_handleError() {
-		const { reconnect } = this._config;
-		const onLine = window.navigator.onLine;
+  _abortControllers() {
+    const controllers = [...this._controllers];
 
-		if (onLine) {
-			this.setState(STATES.LIMITED);
+    controllers.forEach((controller) => {
+      controller.abort();
+    });
 
-			if (reconnect.auto) {
-				this._times++;
-				this._delayReconnect();
-			}
-		} else {
-			this.setState(STATES.OFFLINE);
-		}
-	}
+    this._controllers.removeObjects(controllers);
+  }
 
-	_delayReconnect() {
-		const { reconnect } = this._config;
-		const delay = (this._nextDelay === undefined ? reconnect.delay : this._nextDelay);
-		const times = this._times;
-		let nextDelay = delay * reconnect.multiplier;
+  _handleError() {
+    const { reconnect } = this._config;
+    const onLine = window.navigator.onLine;
 
-		if (reconnect.maxTimes > -1 && times >= reconnect.maxTimes) {
-			this._clearTimer();
-			this.setState(STATES.LIMITED);
+    if (onLine) {
+      this.setState(STATES.LIMITED);
 
-			return;
-		}
+      if (reconnect.auto) {
+        this._times++;
+        this._delayReconnect();
+      }
+    } else {
+      this.setState(STATES.OFFLINE);
+    }
+  }
 
-		if (nextDelay > reconnect.maxDelay) {
-			nextDelay = reconnect.maxDelay;
-		}
+  _delayReconnect() {
+    const { reconnect } = this._config;
+    const _nextDelay = this._nextDelay;
+    const delay = _nextDelay === undefined ? reconnect.delay : _nextDelay;
+    const times = this._times;
+    let nextDelay = delay * reconnect.multiplier;
 
-		const timer = later(this, '_reconnect', delay);
+    if (reconnect.maxTimes > -1 && times >= reconnect.maxTimes) {
+      this._clearTimer();
+      this.setState(STATES.LIMITED);
 
-		this._nextDelay = nextDelay;
-		this._timestamp = Date.now() + delay;
-		this._timer = timer;
-	}
+      return;
+    }
+
+    if (nextDelay > reconnect.maxDelay) {
+      nextDelay = reconnect.maxDelay;
+    }
+
+    const timer = later(this, '_reconnect', delay);
+
+    this._nextDelay = nextDelay;
+    this._timestamp = Date.now() + delay;
+    this._timer = timer;
+  }
 }
