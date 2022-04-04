@@ -13,931 +13,976 @@ import NetworkService from 'dummy/services/network';
 const { Test } = Ember;
 
 function forSettledWaiters() {
-	return !Test.checkWaiters();
+  return !Test.checkWaiters();
 }
 
 function wait(fn) {
-	return waitUntil(fn, { timeout: Infinity });
+  return waitUntil(fn, { timeout: Infinity });
 }
 
 function waitForIdle() {
-	return waitUntil(() => isSettled() && !Test.checkWaiters(), { timeout: Infinity });
+  return waitUntil(() => isSettled() && !Test.checkWaiters(), {
+    timeout: Infinity,
+  });
 }
 
 function waitForIntercepted(context) {
-	context.intercepted = false;
+  context.intercepted = false;
 
-	return wait(() => context.intercepted);
+  return wait(() => context.intercepted);
 }
 
 function asyncFetch(context) {
-	return () => {
-		context.sandbox.clock.restore();
-	};
+  return () => {
+    context.sandbox.clock.restore();
+  };
 }
 
 function goOnline(context) {
-	const OK = 200;
+  const OK = 200;
 
-	return bind(() => {
-		context.status = OK;
+  return bind(() => {
+    context.status = OK;
 
-		if (!context.navigator.onLine) {
-			context.navigator.onLine = true;
-			window.dispatchEvent(new Event('online'));
-		}
+    if (!context.navigator.onLine) {
+      context.navigator.onLine = true;
+      window.dispatchEvent(new Event('online'));
+    }
 
-		if (context.navigator.connection) {
-			context.navigator.connection.dispatchEvent(new Event('change'));
-		}
-	});
+    if (context.navigator.connection) {
+      context.navigator.connection.dispatchEvent(new Event('change'));
+    }
+  });
 }
 
 function goOffline(context) {
-	const FAIL = 0;
+  const FAIL = 0;
 
-	return bind(() => {
-		context.status = FAIL;
+  return bind(() => {
+    context.status = FAIL;
 
-		if (context.navigator.onLine) {
-			context.navigator.onLine = false;
-			window.dispatchEvent(new Event('offline'));
-		}
+    if (context.navigator.onLine) {
+      context.navigator.onLine = false;
+      window.dispatchEvent(new Event('offline'));
+    }
 
-		if (context.navigator.connection) {
-			context.navigator.connection.dispatchEvent(new Event('change'));
-		}
-	});
+    if (context.navigator.connection) {
+      context.navigator.connection.dispatchEvent(new Event('change'));
+    }
+  });
 }
 
 function goLimited(context) {
-	const FAIL = 0;
+  const FAIL = 0;
 
-	return bind(() => {
-		context.status = FAIL;
+  return bind(() => {
+    context.status = FAIL;
 
-		if (!context.navigator.onLine) {
-			context.navigator.onLine = true;
-			window.dispatchEvent(new Event('online'));
-		}
+    if (!context.navigator.onLine) {
+      context.navigator.onLine = true;
+      window.dispatchEvent(new Event('online'));
+    }
 
-		if (context.navigator.connection) {
-			context.navigator.connection.dispatchEvent(new Event('change'));
-		}
-	});
+    if (context.navigator.connection) {
+      context.navigator.connection.dispatchEvent(new Event('change'));
+    }
+  });
 }
 
 function tick(context) {
-	const TICK = 1000;
+  const TICK = 1000;
 
-	return async(time) => {
-		for (let i = 0; i < time; i++) {
-			try {
-				context.tick(TICK);
-			} catch (e) {
-				console.error(e);
-			}
+  return async (time) => {
+    for (let i = 0; i < time; i++) {
+      try {
+        context.tick(TICK);
+      } catch (e) {
+        console.error(e);
+      }
 
-			await wait(forSettledWaiters);
-		}
-	};
+      await wait(forSettledWaiters);
+    }
+  };
 }
 
 function timeout(time) {
-	return new Promise((resolve) => later(resolve, time));
+  return new Promise((resolve) => later(resolve, time));
 }
 
 function intercept(context) {
-	return async(req, res) => {
-		context.intercepted = true;
+  return async (req, res) => {
+    context.intercepted = true;
 
-		if (context.timeout) {
-			await timeout(context.timeout);
-		}
+    if (context.timeout) {
+      await timeout(context.timeout);
+    }
 
-		if (context.status) {
-			res.sendStatus(context.status);
-		} else {
-			throw new Error('aborted');
-		}
-	};
+    if (context.status) {
+      res.sendStatus(context.status);
+    } else {
+      throw new Error('aborted');
+    }
+  };
 }
 
 module('Unit | Services | network', (hooks) => {
-	setupPolly(hooks);
-	setupTest(hooks);
-
-	hooks.beforeEach(function() {
-		this.polly.server.get('/*').passthrough();
-		this.polly.server.head('/favicon.ico').intercept(intercept(this));
-		this.sandbox = sinon.createSandbox({ useFakeTimers: true });
-		this.config = {};
-		this.goOnline = goOnline(this);
-		this.goOffline = goOffline(this);
-		this.goLimited = goLimited(this);
-		this.asyncFetch = asyncFetch(this);
-		this.tick = tick(this.sandbox.clock);
-		this.owner.register('config:environment', { 'network-state': this.config }, { instantiate: false });
-		this.owner.register('service:network', NetworkService.extend({
-			_fetch: waitFor(function(...args) {
-				return this._super(...args);
-			})
-		}));
-		this._navigator = window.navigator;
-		this.navigator = { connection: new EventTarget() };
-		this.goOnline();
+  setupPolly(hooks);
+  setupTest(hooks);
+
+  hooks.beforeEach(function () {
+    this.polly.server.get('/*').passthrough();
+    this.polly.server.head('/favicon.ico').intercept(intercept(this));
+    this.sandbox = sinon.createSandbox({ useFakeTimers: true });
+    this.config = {};
+    this.goOnline = goOnline(this);
+    this.goOffline = goOffline(this);
+    this.goLimited = goLimited(this);
+    this.asyncFetch = asyncFetch(this);
+    this.tick = tick(this.sandbox.clock);
+    this.owner.register(
+      'config:environment',
+      { 'network-state': this.config },
+      { instantiate: false }
+    );
+    this.owner.register(
+      'service:network',
+      NetworkService.extend({
+        _fetch: waitFor(function (...args) {
+          return this._super(...args);
+        }),
+      })
+    );
+    this._navigator = window.navigator;
+    this.navigator = { connection: new EventTarget() };
+    this.goOnline();
+
+    Object.defineProperty(window, 'navigator', {
+      get: () => this.navigator,
+      configurable: true,
+    });
+  });
+
+  hooks.afterEach(async function () {
+    Object.defineProperty(window, 'navigator', {
+      get: () => this._navigator,
+      configurable: true,
+    });
+
+    this.sandbox.restore();
+
+    await waitForIdle();
+  });
+
+  // initial states.
+
+  test('it exists', function (assert) {
+    assert.expect(0);
+
+    this.owner.lookup('service:network');
+  });
+
+  test('it has initial values', function (assert) {
+    const service = this.owner.lookup('service:network');
+
+    assert.equal(service.lastReconnectDuration, 0);
+    assert.equal(service.lastReconnectStatus, 0);
+  });
+
+  test('it is online', async function (assert) {
+    this.goOnline();
+
+    const service = this.owner.lookup('service:network');
+
+    assert.equal(
+      service.get('state'),
+      STATES.ONLINE,
+      'initial state is expected'
+    );
+    assert.ok(service.get('isOnline'), 'service is online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.notOk(service.get('isOffline'), 'service is not offline');
+    assert.ok(service.get('isReconnecting'), 'state is expected');
+
+    await waitForIdle();
+
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.ok(service.get('isOnline'), 'service is online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.notOk(service.get('isOffline'), 'service is not offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+  });
+
+  test('it is offline', async function (assert) {
+    this.goOffline();
+
+    const service = this.owner.lookup('service:network');
+
+    await waitForIdle();
+
+    assert.equal(
+      service.get('state'),
+      STATES.OFFLINE,
+      'initial state is expected'
+    );
+    assert.notOk(service.get('isOnline'), 'service is not online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.ok(service.get('isOffline'), 'service is offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+  });
 
-		Object.defineProperty(window, 'navigator', {
-			get: () => this.navigator,
-			configurable: true
-		});
-	});
-
-	hooks.afterEach(async function() {
-		Object.defineProperty(window, 'navigator', {
-			get: () => this._navigator,
-			configurable: true
-		});
-
-		this.sandbox.restore();
+  test('it is limited', async function (assert) {
+    this.goLimited();
 
-		await waitForIdle();
-	});
+    const service = this.owner.lookup('service:network');
 
-	// initial states.
+    assert.equal(
+      service.get('state'),
+      STATES.ONLINE,
+      'initial state is expected'
+    );
+    assert.ok(service.get('isOnline'), 'service is online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.notOk(service.get('isOffline'), 'service is not offline');
+    assert.ok(service.get('isReconnecting'), 'state is expected');
 
-	test('it exists', function(assert) {
-		assert.expect(0);
+    await waitForIdle();
 
-		this.owner.lookup('service:network');
-	});
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.notOk(service.get('isOnline'), 'service is not online');
+    assert.ok(service.get('isLimited'), 'service is limited');
+    assert.notOk(service.get('isOffline'), 'service is not offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+  });
 
-	test('it has initial values', function(assert) {
-		const service = this.owner.lookup('service:network');
+  // state changes.
 
-		assert.equal(service.lastReconnectDuration, 0);
-		assert.equal(service.lastReconnectStatus, 0);
-	});
+  test('it changes to online from offline', async function (assert) {
+    this.goOffline();
 
-	test('it is online', async function(assert) {
-		this.goOnline();
+    const service = this.owner.lookup('service:network');
 
-		const service = this.owner.lookup('service:network');
+    await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
-		assert.ok(service.get('isOnline'), 'service is online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.ok(service.get('isReconnecting'), 'state is expected');
+    this.goOnline();
 
-		await waitForIdle();
+    await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.ok(service.get('isOnline'), 'service is online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	});
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.ok(service.get('isOnline'), 'service is online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.notOk(service.get('isOffline'), 'service is not offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+    assert.equal(this.polly._requests.length, 1, 'requests are expected');
+  });
 
-	test('it is offline', async function(assert) {
-		this.goOffline();
+  test('it changes to offline from online', async function (assert) {
+    this.goOnline();
 
-		const service = this.owner.lookup('service:network');
+    const service = this.owner.lookup('service:network');
 
-		await waitForIdle();
+    await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
-		assert.notOk(service.get('isOnline'), 'service is not online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.ok(service.get('isOffline'), 'service is offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	});
+    this.goOffline();
 
-	test('it is limited', async function(assert) {
-		this.goLimited();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    assert.equal(
+      service.get('state'),
+      STATES.OFFLINE,
+      'initial state is expected'
+    );
+    assert.notOk(service.get('isOnline'), 'service is not online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.ok(service.get('isOffline'), 'service is offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+  });
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
-		assert.ok(service.get('isOnline'), 'service is online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.ok(service.get('isReconnecting'), 'state is expected');
+  test('it changes to offline from limited', async function (assert) {
+    this.goLimited();
 
-		await waitForIdle();
+    const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.notOk(service.get('isOnline'), 'service is not online');
-		assert.ok(service.get('isLimited'), 'service is limited');
-		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	});
+    await waitForIdle();
 
-	// state changes.
+    this.goOffline();
 
-	test('it changes to online from offline', async function(assert) {
-		this.goOffline();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    assert.equal(
+      service.get('state'),
+      STATES.OFFLINE,
+      'initial state is expected'
+    );
+    assert.notOk(service.get('isOnline'), 'service is not online');
+    assert.notOk(service.get('isLimited'), 'service is not limited');
+    assert.ok(service.get('isOffline'), 'service is offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+  });
 
-		await waitForIdle();
+  test('it changes to limited from online', async function (assert) {
+    this.asyncFetch();
 
-		this.goOnline();
+    this.goOnline();
 
-		await waitForIdle();
+    const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.ok(service.get('isOnline'), 'service is online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-		assert.equal(this.polly._requests.length, 1, 'requests are expected');
-	});
+    await waitForIdle();
 
-	test('it changes to offline from online', async function(assert) {
-		this.goOnline();
+    this.goLimited();
 
-		const service = this.owner.lookup('service:network');
+    await waitForIdle();
 
-		await waitForIdle();
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.notOk(service.get('isOnline'), 'service is not online');
+    assert.ok(service.get('isLimited'), 'service is limited');
+    assert.notOk(service.get('isOffline'), 'service is not offline');
+    assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
+  });
 
-		this.goOffline();
+  test('it tests online connection on network change', async function (assert) {
+    this.goOnline();
 
-		await waitForIdle();
+    const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
-		assert.notOk(service.get('isOnline'), 'service is not online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.ok(service.get('isOffline'), 'service is offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	});
+    await waitForIdle();
 
-	test('it changes to offline from limited', async function(assert) {
-		this.goLimited();
+    this.goOnline();
 
-		const service = this.owner.lookup('service:network');
+    await waitForIdle();
 
-		await waitForIdle();
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.equal(this.polly._requests.length, 2, 'requests are expected');
+  });
 
-		this.goOffline();
+  test('it tests online connection with no cache', async function (assert) {
+    assert.expect(3);
+    this.goOnline();
 
-		await waitForIdle();
+    const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'initial state is expected');
-		assert.notOk(service.get('isOnline'), 'service is not online');
-		assert.notOk(service.get('isLimited'), 'service is not limited');
-		assert.ok(service.get('isOffline'), 'service is offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	});
+    await waitForIdle();
 
-	test('it changes to limited from online', async function(assert) {
-		this.asyncFetch();
+    this.goOnline();
 
-		this.goOnline();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
 
-		await waitForIdle();
+    this.polly._requests.forEach((request) => {
+      assert.equal(
+        request.headers['cache-control'],
+        'no-cache',
+        'header is expected'
+      );
+    });
+  });
 
-		this.goLimited();
+  test('it supports no implementations of connection API', async function (assert) {
+    this.goOnline();
 
-		await waitForIdle();
+    delete window.navigator.connection;
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.notOk(service.get('isOnline'), 'service is not online');
-		assert.ok(service.get('isLimited'), 'service is limited');
-		assert.notOk(service.get('isOffline'), 'service is not offline');
-		assert.notOk(service.get('isReconnecting'), 'service is not reconnecting');
-	});
+    const service = this.owner.lookup('service:network');
 
-	test('it tests online connection on network change', async function(assert) {
-		this.goOnline();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    this.goOnline();
 
-		await waitForIdle();
+    assert.notOk(service.get('isReconnecting'), 'state is expected');
 
-		this.goOnline();
+    run(service, 'destroy');
+  });
 
-		await waitForIdle();
+  test('"state" property cannot be changed', async function (assert) {
+    this.goOffline();
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.equal(this.polly._requests.length, 2, 'requests are expected');
-	});
+    const service = this.owner.lookup('service:network');
 
-	test('it tests online connection with no cache', async function(assert) {
-		this.goOnline();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    assert.throws(() => {
+      service.set('state', STATES.ONLINE);
+    });
 
-		await waitForIdle();
+    await waitForIdle();
 
-		this.goOnline();
+    assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
+  });
 
-		await waitForIdle();
+  // reconnect method
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+  test('it reconnects from online', async function (assert) {
+    this.goOnline();
 
-		this.polly._requests.forEach((request) => {
-			assert.equal(request.headers['cache-control'], 'no-cache', 'header is expected');
-		});
-	});
+    const service = this.owner.lookup('service:network');
 
-	test('it supports no implementations of connection API', async function(assert) {
-		this.goOnline();
+    await waitForIdle();
 
-		delete window.navigator.connection;
+    service.reconnect();
 
-		const service = this.owner.lookup('service:network');
+    assert.ok(service.get('isReconnecting'), 'initial state is expected');
 
-		await waitForIdle();
+    await waitForIdle();
 
-		this.goOnline();
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+  });
 
-		assert.notOk(service.get('isReconnecting'), 'state is expected');
+  test('it reconnects from offline', async function (assert) {
+    this.goOffline();
 
-		run(service, 'destroy');
-	});
+    const service = this.owner.lookup('service:network');
 
-	test('"state" property cannot be changed', async function(assert) {
-		this.goOffline();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    service.reconnect();
 
-		await waitForIdle();
+    assert.ok(service.get('isReconnecting'), 'initial state is expected');
 
-		assert.throws(() => {
-			service.set('state', STATES.ONLINE);
-		});
+    await waitForIdle();
 
-		await waitForIdle();
+    assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
+  });
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
-	});
+  test('it reconnects from limited', async function (assert) {
+    this.goLimited();
 
-	// reconnect method
+    const service = this.owner.lookup('service:network');
 
-	test('it reconnects from online', async function(assert) {
-		this.goOnline();
+    await waitForIdle();
 
-		const service = this.owner.lookup('service:network');
+    service.reconnect();
 
-		await waitForIdle();
+    assert.ok(service.get('isReconnecting'), 'initial state is expected');
 
-		service.reconnect();
+    await waitForIdle();
 
-		assert.ok(service.get('isReconnecting'), 'initial state is expected');
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+  });
 
-		await waitForIdle();
+  test('it aborts previous reconnects when reconnecting', async function (assert) {
+    const service = this.owner.lookup('service:network');
+    let requests = 0;
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-	});
+    await waitForIdle();
 
-	test('it reconnects from offline', async function(assert) {
-		this.goOffline();
+    this.polly.server.head('/favicon.ico').intercept((req, res) => {
+      requests++;
 
-		const service = this.owner.lookup('service:network');
+      if (requests === 2) {
+        res.sendStatus(200);
+      }
+    });
 
-		await waitForIdle();
+    service.reconnect();
 
-		service.reconnect();
+    service.reconnect();
 
-		assert.ok(service.get('isReconnecting'), 'initial state is expected');
+    await waitForIdle();
 
-		await waitForIdle();
+    assert.equal(
+      service.get('state'),
+      STATES.ONLINE,
+      'initial state is expected'
+    );
+    assert.equal(this.polly._requests.length, 3, 'requests are expected');
+  });
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
-	});
+  // timer
 
-	test('it reconnects from limited', async function(assert) {
-		this.goLimited();
+  test('it keeps reconnecting until reconnect goes ok without connection API', async function (assert) {
+    this.goLimited();
 
-		const service = this.owner.lookup('service:network');
+    delete window.navigator.connection;
 
-		await waitForIdle();
+    this.config.reconnect = {
+      auto: true,
+      delay: 10000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: Infinity,
+    };
 
-		service.reconnect();
+    const service = this.owner.lookup('service:network');
 
-		assert.ok(service.get('isReconnecting'), 'initial state is expected');
+    await wait(forSettledWaiters);
 
-		await waitForIdle();
+    await this.tick(70);
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-	});
+    this.goOnline();
 
-	test('it aborts previous reconnects when reconnecting', async function(assert) {
-		const service = this.owner.lookup('service:network');
-		let requests = 0;
+    assert.notEqual(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.equal(this.polly._requests.length, 4, 'requests are expected');
 
-		await waitForIdle();
+    await this.tick(60);
 
-		this.polly.server.head('/favicon.ico').intercept((req, res) => {
-			requests++;
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.equal(this.polly._requests.length, 5, 'requests are expected');
+  });
 
-			if (requests === 2) {
-				res.sendStatus(200);
-			}
-		});
+  test('it keeps reconnecting until reconnect goes ok with connection API', async function (assert) {
+    this.goLimited();
 
-		service.reconnect();
+    this.config.reconnect = {
+      auto: true,
+      delay: 10000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: Infinity,
+    };
 
-		service.reconnect();
+    const service = this.owner.lookup('service:network');
 
-		await waitForIdle();
+    await wait(forSettledWaiters);
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'initial state is expected');
-		assert.equal(this.polly._requests.length, 3, 'requests are expected');
-	});
+    await this.tick(70);
 
-	// timer
+    this.goOnline();
 
-	test('it keeps reconnecting until reconnect goes ok without connection API', async function(assert) {
-		this.goLimited();
+    await wait(forSettledWaiters);
 
-		delete window.navigator.connection;
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.equal(this.polly._requests.length, 5, 'requests are expected');
+  });
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 10000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: Infinity
-		};
+  test('it keeps reconnecting until network goes offline', async function (assert) {
+    this.goLimited();
 
-		const service = this.owner.lookup('service:network');
+    this.config.reconnect = {
+      auto: true,
+      delay: 10000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: Infinity,
+    };
 
-		await wait(forSettledWaiters);
+    const service = this.owner.lookup('service:network');
 
-		await this.tick(70);
+    await wait(forSettledWaiters);
 
-		this.goOnline();
+    await this.tick(70);
 
-		assert.notEqual(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.equal(this.polly._requests.length, 4, 'requests are expected');
+    this.goOffline();
 
-		await this.tick(60);
+    await wait(forSettledWaiters);
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.equal(this.polly._requests.length, 5, 'requests are expected');
-	});
+    assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
+    assert.equal(this.polly._requests.length, 4, 'requests are expected');
+  });
 
-	test('it keeps reconnecting until reconnect goes ok with connection API', async function(assert) {
-		this.goLimited();
+  test('it keeps reconnecting until it reaches max tries', async function (assert) {
+    this.goLimited();
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 10000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: Infinity
-		};
+    this.config.reconnect = {
+      auto: true,
+      delay: 5000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: 3,
+    };
 
-		const service = this.owner.lookup('service:network');
+    const service = this.owner.lookup('service:network');
 
-		await wait(forSettledWaiters);
+    await wait(forSettledWaiters);
 
-		await this.tick(70);
+    await this.tick(45);
 
-		this.goOnline();
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(this.polly._requests.length, 3, 'requests are expected');
+  });
 
-		await wait(forSettledWaiters);
+  test('it resets reconnects when forced', async function (assert) {
+    this.goLimited();
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.equal(this.polly._requests.length, 5, 'requests are expected');
-	});
+    this.config.reconnect = {
+      auto: true,
+      delay: 5000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: 4,
+    };
 
-	test('it keeps reconnecting until network goes offline', async function(assert) {
-		this.goLimited();
+    const service = this.owner.lookup('service:network');
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 10000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: Infinity
-		};
+    await wait(forSettledWaiters);
 
-		const service = this.owner.lookup('service:network');
+    await this.tick(15);
 
-		await wait(forSettledWaiters);
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(this.polly._requests.length, 3, 'requests are expected');
 
-		await this.tick(70);
+    service.reconnect();
 
-		this.goOffline();
+    await this.tick(45);
 
-		await wait(forSettledWaiters);
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(this.polly._requests.length, 7, 'requests are expected');
+  });
 
-		assert.equal(service.get('state'), STATES.OFFLINE, 'state is expected');
-		assert.equal(this.polly._requests.length, 4, 'requests are expected');
-	});
+  // change event
 
-	test('it keeps reconnecting until it reaches max tries', async function(assert) {
-		this.goLimited();
+  test('it sends change action on online event', async function (assert) {
+    assert.expect(1);
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 5000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: 3
-		};
+    this.goOffline();
 
-		const service = this.owner.lookup('service:network');
+    const service = this.owner.lookup('service:network');
 
-		await wait(forSettledWaiters);
+    await waitForIdle();
 
-		await this.tick(45);
+    service.on('change', (newState) => {
+      assert.equal(newState, STATES.ONLINE, 'event for change');
+    });
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(this.polly._requests.length, 3, 'requests are expected');
-	});
+    this.goOnline();
 
-	test('it resets reconnects when forced', async function(assert) {
-		this.goLimited();
+    await waitForIdle();
+  });
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 5000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: 4
-		};
+  test('it sends change action on limited event', async function (assert) {
+    assert.expect(1);
 
-		const service = this.owner.lookup('service:network');
+    this.asyncFetch();
 
-		await wait(forSettledWaiters);
+    this.goOffline();
 
-		await this.tick(15);
+    const service = this.owner.lookup('service:network');
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(this.polly._requests.length, 3, 'requests are expected');
+    await waitForIdle();
 
-		service.reconnect();
+    service.on('change', (newState) => {
+      assert.equal(newState, STATES.LIMITED, 'event for change');
+    });
 
-		await this.tick(45);
+    this.goLimited();
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(this.polly._requests.length, 7, 'requests are expected');
-	});
+    await waitForIdle();
+  });
 
-	// change event
+  test('it sends change action on offline event', async function (assert) {
+    assert.expect(1);
 
-	test('it sends change action on online event', async function(assert) {
-		assert.expect(1);
+    this.goOnline();
 
-		this.goOffline();
+    const service = this.owner.lookup('service:network');
 
-		const service = this.owner.lookup('service:network');
+    await waitForIdle();
 
-		await waitForIdle();
+    service.on('change', (newState) => {
+      assert.equal(newState, STATES.OFFLINE, 'event for change');
+    });
 
-		service.on('change', (newState) => {
-			assert.equal(newState, STATES.ONLINE, 'event for change');
-		});
+    this.goOffline();
 
-		this.goOnline();
+    await waitForIdle();
+  });
 
-		await waitForIdle();
-	});
+  // remaining
 
-	test('it sends change action on limited event', async function(assert) {
-		assert.expect(1);
+  test('it returns remaining time for next reconnect', async function (assert) {
+    this.goLimited();
 
-		this.asyncFetch();
+    this.config.reconnect = {
+      auto: true,
+      delay: 5000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: 3,
+    };
 
-		this.goOffline();
+    const service = this.owner.lookup('service:network');
 
-		const service = this.owner.lookup('service:network');
+    await wait(forSettledWaiters);
 
-		await waitForIdle();
+    assert.ok(service.get('hasTimer'), 'timer is enabled');
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
+    assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
-		service.on('change', (newState) => {
-			assert.equal(newState, STATES.LIMITED, 'event for change');
-		});
+    await this.tick(2);
 
-		this.goLimited();
+    assert.ok(service.get('hasTimer'), 'timer is enabled');
+    assert.equal(
+      service.get('remaining'),
+      3000,
+      'second remaining is expected'
+    );
+    assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
-		await waitForIdle();
-	});
+    await this.tick(5);
 
-	test('it sends change action on offline event', async function(assert) {
-		assert.expect(1);
+    assert.ok(service.get('hasTimer'), 'timer is enabled');
+    assert.equal(service.get('remaining'), 8000, 'third remaining is expected');
+    assert.equal(this.polly._requests.length, 2, 'requests are expected');
 
-		this.goOnline();
+    await this.tick(10);
 
-		const service = this.owner.lookup('service:network');
+    assert.notOk(service.get('hasTimer'), 'timer is disabled');
+    assert.ok(isNaN(service.get('remaining')), 'forth remaining is expected');
+    assert.equal(this.polly._requests.length, 3, 'requests are expected');
+  });
 
-		await waitForIdle();
+  test('it never returns negative remaining', async function (assert) {
+    this.timeout = 10;
 
-		service.on('change', (newState) => {
-			assert.equal(newState, STATES.OFFLINE, 'event for change');
-		});
+    this.goLimited();
 
-		this.goOffline();
+    this.config.reconnect = {
+      auto: true,
+      delay: 5000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: 2,
+    };
 
-		await waitForIdle();
-	});
+    const service = this.owner.lookup('service:network');
 
-	// remaining
+    await waitForIntercepted(this);
 
-	test('it returns remaining time for next reconnect', async function(assert) {
-		this.goLimited();
+    this.sandbox.clock.tick(10);
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 5000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: 3
-		};
+    await wait(forSettledWaiters);
 
-		const service = this.owner.lookup('service:network');
+    assert.ok(service.get('hasTimer'), 'timer is enabled');
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
+    assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
-		await wait(forSettledWaiters);
+    this.sandbox.clock.tick(5005);
 
-		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
-		assert.equal(this.polly._requests.length, 1, 'requests are expected');
+    assert.equal(service.get('remaining'), 0, 'third remaining is expected');
 
-		await this.tick(2);
+    await waitForIntercepted(this);
 
-		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('remaining'), 3000, 'second remaining is expected');
-		assert.equal(this.polly._requests.length, 1, 'requests are expected');
+    this.sandbox.clock.tick(10);
+  });
 
-		await this.tick(5);
+  test('it resets reconnects on network change', async function (assert) {
+    this.timeout = 10;
 
-		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('remaining'), 8000, 'third remaining is expected');
-		assert.equal(this.polly._requests.length, 2, 'requests are expected');
+    this.goLimited();
 
-		await this.tick(10);
+    this.config.reconnect = {
+      auto: true,
+      delay: 5000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: 2,
+    };
 
-		assert.notOk(service.get('hasTimer'), 'timer is disabled');
-		assert.ok(isNaN(service.get('remaining')), 'forth remaining is expected');
-		assert.equal(this.polly._requests.length, 3, 'requests are expected');
-	});
+    const service = this.owner.lookup('service:network');
 
-	test('it never returns negative remaining', async function(assert) {
-		this.timeout = 10;
+    await waitForIntercepted(this);
 
-		this.goLimited();
+    this.sandbox.clock.tick(10);
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 5000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: 2
-		};
+    await wait(forSettledWaiters);
 
-		const service = this.owner.lookup('service:network');
+    await this.tick(2);
 
-		await waitForIntercepted(this);
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(this.polly._requests.length, 1, 'requests are expected');
 
-		this.sandbox.clock.tick(10);
+    this.goLimited();
 
-		await wait(forSettledWaiters);
+    await waitForIntercepted(this);
 
-		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(service.get('remaining'), 5000, 'first remaining is expected');
-		assert.equal(this.polly._requests.length, 1, 'requests are expected');
+    this.sandbox.clock.tick(10);
 
-		this.sandbox.clock.tick(5005);
+    await wait(forSettledWaiters);
 
-		assert.equal(service.get('remaining'), 0, 'third remaining is expected');
+    this.sandbox.clock.tick(5000);
 
-		await waitForIntercepted(this);
+    await waitForIntercepted(this);
 
-		this.sandbox.clock.tick(10);
-	});
+    this.sandbox.clock.tick(10);
 
-	test('it resets reconnects on network change', async function(assert) {
-		this.timeout = 10;
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(this.polly._requests.length, 3, 'requests are expected');
+  });
 
-		this.goLimited();
+  // config
 
-		this.config.reconnect = {
-			auto: true,
-			delay: 5000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: 2
-		};
+  test('it allows path config', async function (assert) {
+    const path = '/foo/bar';
 
-		const service = this.owner.lookup('service:network');
+    this.goOnline();
 
-		await waitForIntercepted(this);
+    this.config.reconnect = {
+      path,
+    };
 
-		this.sandbox.clock.tick(10);
+    this.polly.server.head(path).intercept(intercept(this));
 
-		await wait(forSettledWaiters);
+    const service = this.owner.lookup('service:network');
 
-		await this.tick(2);
+    await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(this.polly._requests.length, 1, 'requests are expected');
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+  });
 
-		this.goLimited();
+  test('it works with no config', function (assert) {
+    assert.expect(0);
 
-		await waitForIntercepted(this);
+    this.owner.register('config:environment', {}, { instantiate: false });
 
-		this.sandbox.clock.tick(10);
+    this.owner.lookup('service:network');
+  });
 
-		await wait(forSettledWaiters);
+  // fetch
 
-		this.sandbox.clock.tick(5000);
+  test('it knows last reconnect duration', async function (assert) {
+    this.timeout = 5000;
 
-		await waitForIntercepted(this);
+    this.goLimited();
 
-		this.sandbox.clock.tick(10);
+    this.config.reconnect = {
+      auto: false,
+    };
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(this.polly._requests.length, 3, 'requests are expected');
-	});
+    const service = this.owner.lookup('service:network');
 
-	// config
+    await waitForIntercepted(this);
 
-	test('it allows path config', async function(assert) {
-		const path = '/foo/bar';
+    this.sandbox.clock.tick(5000);
 
-		this.goOnline();
+    await waitForIdle();
 
-		this.config.reconnect = {
-			path
-		};
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.equal(
+      service.get('lastReconnectDuration'),
+      5000,
+      'duration is expected'
+    );
+  });
 
-		this.polly.server.head(path).intercept(intercept(this));
+  test('it knows last reconnect status', async function (assert) {
+    this.asyncFetch();
 
-		const service = this.owner.lookup('service:network');
+    this.goOnline();
 
-		await waitForIdle();
+    this.status = 404;
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-	});
+    this.config.reconnect = {
+      auto: false,
+    };
 
-	test('it works with no config', function(assert) {
-		assert.expect(0);
+    const service = this.owner.lookup('service:network');
 
-		this.owner.register('config:environment', {}, { instantiate: false });
+    await waitForIdle();
 
-		this.owner.lookup('service:network');
-	});
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+    assert.equal(service.get('lastReconnectStatus'), 404, 'status is expected');
 
-	// fetch
+    this.goLimited();
 
-	test('it knows last reconnect duration', async function(assert) {
-		this.timeout = 5000;
+    await waitForIdle();
 
-		this.goLimited();
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+    assert.notOk(service.get('lastReconnectStatus'), 'status is not expected');
+  });
 
-		this.config.reconnect = {
-			auto: false
-		};
+  // timeout
 
-		const service = this.owner.lookup('service:network');
+  test('it aborts reconnect on timeout', async function (assert) {
+    this.timeout = 20000;
+    this.config.reconnect = {
+      auto: false,
+      timeout: 10000,
+    };
 
-		await waitForIntercepted(this);
+    this.goOnline();
 
-		this.sandbox.clock.tick(5000);
+    const service = this.owner.lookup('service:network');
 
-		await waitForIdle();
+    await wait(() => Test.checkWaiters());
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.equal(service.get('lastReconnectDuration'), 5000, 'duration is expected');
-	});
+    this.sandbox.clock.tick(10000);
+    this.sandbox.clock.tick(10000);
 
-	test('it knows last reconnect status', async function(assert) {
-		this.asyncFetch();
+    await this.tick(1);
 
-		this.goOnline();
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
+  });
 
-		this.status = 404;
+  // never trust the API
 
-		this.config.reconnect = {
-			auto: false
-		};
+  test('it goes online even when API is offline', async function (assert) {
+    this.goOffline();
 
-		const service = this.owner.lookup('service:network');
+    const service = this.owner.lookup('service:network');
 
-		await waitForIdle();
+    await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-		assert.equal(service.get('lastReconnectStatus'), 404, 'status is expected');
+    this.status = 200;
 
-		this.goLimited();
+    service.reconnect();
 
-		await waitForIdle();
+    await waitForIdle();
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-		assert.notOk(service.get('lastReconnectStatus'), 'status is not expected');
-	});
+    assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
+  });
 
-	// timeout
+  // service destroy
 
-	test('it aborts reconnect on timeout', async function(assert) {
-		this.timeout = 20000;
-		this.config.reconnect = {
-			auto: false,
-			timeout: 10000
-		};
+  test('it does not throw an error when destroyed on reconnect', async function (assert) {
+    assert.expect(0);
 
-		this.goOnline();
+    this.timeout = 1000;
 
-		const service = this.owner.lookup('service:network');
+    this.goOnline();
 
-		await wait(() => Test.checkWaiters());
+    const service = this.owner.lookup('service:network');
 
-		this.sandbox.clock.tick(10000);
-		this.sandbox.clock.tick(10000);
+    await wait(() => Test.checkWaiters());
 
-		await this.tick(1);
+    run(service, 'destroy');
 
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-	});
+    this.sandbox.clock.tick(1000);
+  });
 
-	// never trust the API
+  test('it does not throw an error when destroyed on timeout', async function (assert) {
+    assert.expect(0);
 
-	test('it goes online even when API is offline', async function(assert) {
-		this.goOffline();
+    this.timeout = 20000;
+    this.config.reconnect = {
+      auto: false,
+      timeout: 10000,
+    };
 
-		const service = this.owner.lookup('service:network');
+    this.goOnline();
 
-		await waitForIdle();
+    const service = this.owner.lookup('service:network');
 
-		this.status = 200;
+    await wait(() => Test.checkWaiters());
 
-		service.reconnect();
+    run(service, 'destroy');
 
-		await waitForIdle();
+    this.sandbox.clock.tick(10000);
+    this.sandbox.clock.tick(10000);
 
-		assert.equal(service.get('state'), STATES.ONLINE, 'state is expected');
-	});
+    await this.tick(1);
+  });
 
-	// service destroy
+  test('it does not throw an error when destroyed on delayed reconnect', async function (assert) {
+    this.goLimited();
 
-	test('it does not throw an error when destroyed on reconnect', async function(assert) {
-		assert.expect(0);
+    this.config.reconnect = {
+      auto: true,
+      delay: 5000,
+      multiplier: 2,
+      maxDelay: 60000,
+      maxTimes: 2,
+    };
 
-		this.timeout = 1000;
+    const service = this.owner.lookup('service:network');
 
-		this.goOnline();
+    await wait(forSettledWaiters);
 
-		const service = this.owner.lookup('service:network');
+    assert.ok(service.get('hasTimer'), 'timer is enabled');
+    assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
 
-		await wait(() => Test.checkWaiters());
+    run(service, 'destroy');
 
-		run(service, 'destroy');
-
-		this.sandbox.clock.tick(1000);
-	});
-
-	test('it does not throw an error when destroyed on timeout', async function(assert) {
-		assert.expect(0);
-
-		this.timeout = 20000;
-		this.config.reconnect = {
-			auto: false,
-			timeout: 10000
-		};
-
-		this.goOnline();
-
-		const service = this.owner.lookup('service:network');
-
-		await wait(() => Test.checkWaiters());
-
-		run(service, 'destroy');
-
-		this.sandbox.clock.tick(10000);
-		this.sandbox.clock.tick(10000);
-
-		await this.tick(1);
-	});
-
-	test('it does not throw an error when destroyed on delayed reconnect', async function(assert) {
-		this.goLimited();
-
-		this.config.reconnect = {
-			auto: true,
-			delay: 5000,
-			multiplier: 2,
-			maxDelay: 60000,
-			maxTimes: 2
-		};
-
-		const service = this.owner.lookup('service:network');
-
-		await wait(forSettledWaiters);
-
-		assert.ok(service.get('hasTimer'), 'timer is enabled');
-		assert.equal(service.get('state'), STATES.LIMITED, 'state is expected');
-
-		run(service, 'destroy');
-
-		await this.tick(5);
-	});
+    await this.tick(5);
+  });
 });
-
