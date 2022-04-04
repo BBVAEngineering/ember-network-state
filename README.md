@@ -96,6 +96,7 @@ module.exports = function (/* environment */) {
         timeout: 15000,
         maxDelay: 60000,
         maxTimes: -1,
+        mode: null,
       },
     },
   };
@@ -112,6 +113,7 @@ Posible values:
   - `timeout`: Reconnect request timeout.
   - `maxDelay`: Maximum delay for a reconnect. Default: `60000`.
   - `maxTimes`: Maximum times for a reconnect. When value is negative, its `Infinity`. Default: `-1`.
+  - `mode`: Helpful if you want to set the mode to something other than default like `no-cors`. Default: `null`.
 
 ## Contribute
 

@@ -6,6 +6,7 @@ import { cancel, later } from '@ember/runloop';
 import { getOwner } from '@ember/application';
 import { A } from '@ember/array';
 import { tracked } from '@glimmer/tracking';
+import { isPresent } from '@ember/utils';
 
 export default class NetworkService extends Service.extend(Evented) {
   @tracked lastReconnectDuration = 0;
@@ -163,12 +164,18 @@ export default class NetworkService extends Service.extend(Evented) {
     let status = 0;
 
     try {
-      const response = await this._fetch(reconnect.path, {
+      let requestOptions = {
         method: 'HEAD',
         cache: 'no-store',
         signal: controller.signal,
         headers: { 'cache-control': 'no-cache' },
-      });
+      };
+
+      if (isPresent(reconnect.mode)) {
+				requestOptions.mode = reconnect.mode;
+			}
+
+      const response = await this._fetch(reconnect.path, requestOptions);
 
       if (!this.isDestroyed) {
         this._controllers.removeObject(controller);

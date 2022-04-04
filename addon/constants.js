@@ -14,6 +14,7 @@ export const CONFIG = {
     timeout: 15000,
     maxDelay: 60000,
     maxTimes: -1,
+    mode: null,
   },
 };
 
